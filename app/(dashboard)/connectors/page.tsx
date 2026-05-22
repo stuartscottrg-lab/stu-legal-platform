@@ -91,31 +91,36 @@ const COMING_SOON = [
 ];
 
 function useConnectorStore() {
-  const [connected, setConnected] = useState<ConnectedState[]>([]);
+  const [connected, setConnected] = useState<Record<string, ConnectedState>>({});
+  const [providers, setProviders] = useState<Record<string, boolean>>({});
+  const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('stu_connectors_v2');
-      if (saved) setConnected(JSON.parse(saved));
-    } catch {}
-  }, []);
-
-  const save = (next: ConnectedState[]) => {
-    setConnected(next);
-    localStorage.setItem('stu_connectors_v2', JSON.stringify(next));
+  const refresh = () => {
+    fetch('/api/connectors/status')
+      .then(r => r.json())
+      .then(d => {
+        setConnected(d.connected ?? {});
+        setProviders(d.providers ?? {});
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
   };
 
-  const connect = (id: string, account: string) => {
-    save([...connected.filter(c => c.id !== id), { id, account, connectedAt: new Date().toISOString() }]);
+  useEffect(() => { refresh(); }, []);
+
+  const disconnect = async (id: string) => {
+    await fetch('/api/connectors/status', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: id }),
+    });
+    refresh();
   };
 
-  const disconnect = (id: string) => {
-    save(connected.filter(c => c.id !== id));
-  };
+  const getState = (id: string) => connected[id] ? { id, account: connected[id].account, connectedAt: connected[id].connectedAt } : undefined;
+  const isProviderEnabled = (id: string) => providers[id] ?? false;
 
-  const getState = (id: string) => connected.find(c => c.id === id);
-
-  return { connect, disconnect, getState };
+  return { disconnect, getState, isProviderEnabled, loaded, refresh };
 }
 
 function OAuthButton({ label, icon, color, onClick, loading }: {
@@ -145,25 +150,20 @@ function OAuthButton({ label, icon, color, onClick, loading }: {
   );
 }
 
-function ConnectorCard({ def }: { def: ConnectorDef }) {
-  const { connect, disconnect, getState } = useConnectorStore();
+function ConnectorCard({ def, onRefresh }: { def: ConnectorDef; onRefresh: () => void }) {
+  const { disconnect, getState, isProviderEnabled } = useConnectorStore();
   const state = getState(def.id);
   const connected = !!state;
+  const enabled = def.authType === 'imap' || isProviderEnabled(def.id);
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [appleId, setAppleId] = useState('');
   const [appPassword, setAppPassword] = useState('');
   const [err, setErr] = useState('');
 
-  async function handleOAuth() {
-    setLoading(true);
-    setErr('');
-    // Simulate OAuth handshake — replace with real OAuth redirect in production
-    await new Promise(r => setTimeout(r, 1800));
-    const account = def.id === 'google' ? 'stuart@gmail.com' : 'stuart@outlook.com';
-    connect(def.id, account);
-    setLoading(false);
-    setExpanded(false);
+  function handleOAuth() {
+    // Redirect to our OAuth connect route — it handles the full flow
+    window.location.href = `/api/connectors/${def.id}/connect`;
   }
 
   async function handleImap() {
@@ -173,12 +173,22 @@ function ConnectorCard({ def }: { def: ConnectorDef }) {
     }
     setLoading(true);
     setErr('');
-    await new Promise(r => setTimeout(r, 1500));
-    connect(def.id, appleId.trim());
+    const res = await fetch('/api/connectors/icloud', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ appleId: appleId.trim(), appPassword: appPassword.trim() }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setErr(data.error || 'Connection failed');
+      setLoading(false);
+      return;
+    }
     setLoading(false);
     setExpanded(false);
     setAppleId('');
     setAppPassword('');
+    onRefresh();
   }
 
   return (
@@ -220,13 +230,17 @@ function ConnectorCard({ def }: { def: ConnectorDef }) {
             >
               <Unplug size={11} /> Disconnect
             </button>
-          ) : (
+          ) : enabled ? (
             <button
               onClick={() => setExpanded(e => !e)}
               style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', color: 'var(--c-accent-text)', background: 'var(--c-accent-bg)', border: 'none', cursor: 'pointer' }}
             >
               <Plug size={11} /> Connect
             </button>
+          ) : (
+            <span style={{ fontSize: '11px', color: 'var(--c-text-4)', background: 'var(--c-panel)', border: '1px solid var(--c-border)', borderRadius: '20px', padding: '4px 10px' }}>
+              Needs credentials
+            </span>
           )}
         </div>
       </div>
@@ -357,6 +371,18 @@ function SignInProviders() {
 }
 
 export default function ConnectorsPage() {
+  const { refresh, loaded } = useConnectorStore();
+
+  // Re-read status after OAuth redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('connected') || params.get('error')) {
+      refresh();
+      // Clean URL
+      window.history.replaceState({}, '', '/connectors');
+    }
+  }, []);
+
   return (
     <div style={{ padding: '32px 40px 60px', maxWidth: '800px' }}>
       <div style={{ marginBottom: '28px' }}>
@@ -370,7 +396,7 @@ export default function ConnectorsPage() {
       <div style={{ marginBottom: '10px' }}>
         <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>Email &amp; Calendar</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {CONNECTORS.map(c => <ConnectorCard key={c.id} def={c} />)}
+          {CONNECTORS.map(c => <ConnectorCard key={c.id} def={c} onRefresh={refresh} />)}
         </div>
       </div>
 

@@ -7,8 +7,22 @@ export function runMigrations() {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL, name TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'user', created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      password_hash TEXT, name TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'member', created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS connector_tokens (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      provider TEXT NOT NULL,
+      account TEXT,
+      access_token TEXT,
+      refresh_token TEXT,
+      expires_at INTEGER,
+      scope TEXT,
+      extra TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, provider)
     );
     CREATE TABLE IF NOT EXISTS matters (
       id TEXT PRIMARY KEY, title TEXT NOT NULL, client_name TEXT NOT NULL,
