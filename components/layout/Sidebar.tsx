@@ -4,8 +4,9 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import {
   Sparkles, FolderOpen, Workflow, History, Library,
-  Mail, Clock, Search, Settings, Sun, Moon, ChevronDown, ChevronRight, Plus, Plug, Table2,
+  Mail, Clock, Search, Settings, Sun, Moon, ChevronDown, ChevronRight, Plus, Plug, Table2, LogOut,
 } from 'lucide-react';
+import { useClerk } from '@clerk/nextjs';
 import { useConnectors } from '@/lib/hooks/useConnectors';
 import { useTheme } from '@/components/ThemeProvider';
 
@@ -14,6 +15,7 @@ interface Matter { id: string; title: string; client_name: string; }
 export default function Sidebar({ onClose }: { onClose?: () => void } = {}) {
   const path = usePathname();
   const { theme, toggle } = useTheme();
+  const { signOut } = useClerk();
   const [matters, setMatters] = useState<Matter[]>([]);
   const [mattersOpen, setMattersOpen] = useState(false);
   const { anyConnected } = useConnectors();
@@ -150,6 +152,19 @@ export default function Sidebar({ onClose }: { onClose?: () => void } = {}) {
       {/* Footer */}
       <div style={{ padding: '8px 6px 12px', borderTop: '1px solid var(--c-border)', display: 'flex', flexDirection: 'column', gap: '1px' }}>
         {navItem('/settings', <Settings size={14} />, 'Settings')}
+        <button
+          onClick={() => signOut({ redirectUrl: '/sign-in' })}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '9px',
+            padding: '6px 10px', borderRadius: '7px', width: '100%',
+            fontSize: '13px', cursor: 'pointer', textAlign: 'left',
+            color: 'var(--c-text-3)', background: 'transparent',
+            border: 'none', fontFamily: 'inherit', transition: 'all 0.1s',
+          }}
+        >
+          <span style={{ opacity: 0.6, display: 'flex', alignItems: 'center' }}><LogOut size={14} /></span>
+          Sign out
+        </button>
       </div>
     </aside>
   );
