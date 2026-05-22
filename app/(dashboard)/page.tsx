@@ -1,12 +1,76 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Paperclip, Sparkles, ArrowUp, RotateCcw, Search, Check, Plus, ChevronDown, ChevronRight, FileText, X, Brain } from 'lucide-react';
+import { Paperclip, Sparkles, ArrowUp, RotateCcw, Search, ChevronDown, ChevronRight, FileText, X, Brain } from 'lucide-react';
 import Link from 'next/link';
-import { useConnectors } from '@/lib/hooks/useConnectors';
+import { PERSONAS, getPersona, DEFAULT_PERSONA_ID, type Persona } from '@/lib/personas';
 
 interface Msg { role: string; content: string; thinking?: string; thinkingOpen?: boolean; }
 interface Matter { id: string; title: string; client_name: string; }
 interface Doc { id: string; original_name: string; matter_title: string; }
+
+/* ── Persona switcher ── */
+function PersonaSwitcher({ current, onChange }: { current: Persona; onChange: (p: Persona) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '8px',
+          background: current.bgColor, border: `1px solid ${current.color}33`,
+          borderRadius: '20px', padding: '5px 12px 5px 6px',
+          cursor: 'pointer', transition: 'all 0.15s',
+        }}
+      >
+        <span style={{
+          width: 22, height: 22, borderRadius: '50%',
+          background: current.color, color: '#fff',
+          fontSize: '10px', fontWeight: '700',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}>{current.initials}</span>
+        <span style={{ fontSize: '12px', fontWeight: '600', color: current.color }}>{current.name}</span>
+        <ChevronDown size={11} color={current.color} />
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 50 }} />
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 8px)', left: 0,
+            background: 'var(--c-card)', border: '1px solid var(--c-border)',
+            borderRadius: '14px', padding: '8px', zIndex: 51,
+            width: '280px', boxShadow: '0 12px 40px rgba(0,0,0,0.2)',
+          }}>
+            <p style={{ fontSize: '10px', fontWeight: '600', color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '4px 8px 8px' }}>Choose your lawyer</p>
+            {PERSONAS.map(p => (
+              <button
+                key={p.id}
+                onClick={() => { onChange(p); setOpen(false); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '12px', width: '100%',
+                  textAlign: 'left', background: p.id === current.id ? p.bgColor : 'none',
+                  border: p.id === current.id ? `1px solid ${p.color}33` : '1px solid transparent',
+                  borderRadius: '10px', padding: '10px 10px', cursor: 'pointer',
+                  transition: 'all 0.1s', marginBottom: '2px',
+                }}
+              >
+                <span style={{
+                  width: 34, height: 34, borderRadius: '50%', background: p.color,
+                  color: '#fff', fontSize: '13px', fontWeight: '700', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>{p.initials}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--c-text)', marginBottom: '2px' }}>{p.name} <span style={{ fontSize: '11px', color: p.color, fontWeight: '500' }}>· {p.title}</span></div>
+                  <div style={{ fontSize: '11px', color: 'var(--c-text-3)' }}>{p.style}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 const PROMPT_TEMPLATES = [
   { label: 'Review NDA for key risks', meta: 'Review · Playbook', prompt: 'Walk me through the key legal risks I should look for when reviewing a non-disclosure agreement, including issues with confidential information definitions, obligations, term, permitted disclosures, and remedies.' },
@@ -38,7 +102,7 @@ function ThinkingBlock({ thinking, open, onToggle }: { thinking: string; open: b
         }}
       >
         <Brain size={11} color="#8b5cf6" />
-        <span style={{ color: '#8b5cf6', fontWeight: '500' }}>See Stu's thought process</span>
+        <span style={{ color: '#8b5cf6', fontWeight: '500' }}>See the thought process</span>
         {open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
       </button>
       {open && (
@@ -198,9 +262,20 @@ export default function AssistantPage() {
   const [attachedDocs, setAttachedDocs] = useState<Doc[]>([]);
   const [showFiles, setShowFiles] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
-  const { connectors, connect, disconnect, ready } = useConnectors();
+  const [persona, setPersona] = useState<Persona>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('stu_persona');
+      if (saved) return getPersona(saved);
+    }
+    return getPersona(DEFAULT_PERSONA_ID);
+  });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const handlePersonaChange = (p: Persona) => {
+    setPersona(p);
+    if (typeof window !== 'undefined') localStorage.setItem('stu_persona', p.id);
+  };
 
   useEffect(() => {
     fetch('/api/matters').then(r => r.json()).then(d => setMatters(d || [])).catch(() => {});
@@ -243,7 +318,7 @@ export default function AssistantPage() {
       const res = await fetch('/api/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: apiMessages }),
+        body: JSON.stringify({ messages: apiMessages, personaId: persona.id }),
       });
 
       if (!res.body) throw new Error('No response stream');
@@ -304,11 +379,12 @@ export default function AssistantPage() {
         {showFiles && <FilesModal onClose={() => setShowFiles(false)} onAttach={docs => setAttachedDocs(docs)} />}
 
         {/* Header */}
-        <div style={{ flexShrink: 0, borderBottom: '1px solid var(--c-border)', padding: '0 24px', height: '48px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--c-text-2)' }}>
-            {selectedMatter ? matters.find(m => m.id === selectedMatter)?.title || 'Conversation' : 'Conversation'}
-          </span>
+        <div style={{ flexShrink: 0, borderBottom: '1px solid var(--c-border)', padding: '0 16px', height: '52px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <PersonaSwitcher current={persona} onChange={handlePersonaChange} />
           <div style={{ flex: 1 }} />
+          <span style={{ fontSize: '12px', color: 'var(--c-text-3)' }}>
+            {selectedMatter ? matters.find(m => m.id === selectedMatter)?.title : ''}
+          </span>
           <button onClick={() => { setMessages([]); setInput(''); setAttachedDocs([]); }} style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: '1px solid var(--c-border)', borderRadius: '6px', padding: '5px 10px', fontSize: '12px', color: 'var(--c-text-2)', cursor: 'pointer' }}>
             <RotateCcw size={11} /> New
           </button>
@@ -408,9 +484,21 @@ export default function AssistantPage() {
         </Link>
       </div>
 
-      {/* Wordmark */}
-      <div style={{ fontSize: '44px', fontWeight: '600', color: 'var(--c-text)', letterSpacing: '-1.5px', marginBottom: '22px', fontFamily: 'Georgia, "Times New Roman", serif', userSelect: 'none' }}>
-        Stu
+      {/* Persona avatar + wordmark */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px', gap: '12px' }}>
+        <div style={{
+          width: 64, height: 64, borderRadius: '50%',
+          background: persona.color, color: '#fff',
+          fontSize: '22px', fontWeight: '700',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: `0 8px 24px ${persona.color}44`,
+          transition: 'all 0.3s',
+        }}>{persona.initials}</div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--c-text)', letterSpacing: '-0.5px' }}>{persona.name}</div>
+          <div style={{ fontSize: '12px', color: 'var(--c-text-3)', marginTop: '2px' }}>{persona.title}</div>
+        </div>
+        <PersonaSwitcher current={persona} onChange={handlePersonaChange} />
       </div>
 
       {/* Context selector */}
@@ -456,7 +544,7 @@ export default function AssistantPage() {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-          placeholder="Ask Stu anything…"
+          placeholder={`Ask ${persona.name} anything…`}
           rows={4}
           style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', padding: '18px 20px 8px', fontSize: '14.5px', color: 'var(--c-text)', resize: 'none', fontFamily: 'inherit', lineHeight: '1.6' }}
           autoFocus
@@ -496,7 +584,7 @@ export default function AssistantPage() {
               transition: 'all 0.15s',
             }}
           >
-            Ask Stu
+            Ask {persona.name}
           </button>
         </div>
       </div>
@@ -516,23 +604,9 @@ export default function AssistantPage() {
             </span>
           ))}
 
-          {ready && [
-            { id: 'gmail' as const, label: 'Gmail', color: '#EA4335' },
-            { id: 'outlook' as const, label: 'Outlook', color: '#0078D4' },
-          ].map(c => {
-            const connected = connectors.find(x => x.id === c.id)?.connected ?? false;
-            return connected ? (
-              <button key={c.id} onClick={() => disconnect(c.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: `${c.color}0d`, border: `1px solid ${c.color}33`, borderRadius: '20px', padding: '4px 10px 4px 8px', fontSize: '12px', color: 'var(--c-text-2)', cursor: 'pointer' }}>
-                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: c.color, flexShrink: 0 }} />
-                {c.label} <Check size={10} style={{ color: c.color }} />
-              </button>
-            ) : (
-              <Link key={c.id} href="/connectors" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'transparent', border: '1px dashed var(--c-border)', borderRadius: '20px', padding: '4px 10px 4px 8px', fontSize: '12px', color: 'var(--c-text-4)', textDecoration: 'none' }}>
-                <span style={{ width: '7px', height: '7px', borderRadius: '50%', border: `1.5px solid ${c.color}55`, flexShrink: 0 }} />
-                {c.label} <Plus size={10} />
-              </Link>
-            );
-          })}
+          <Link href="/connectors" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'transparent', border: '1px dashed var(--c-border)', borderRadius: '20px', padding: '4px 10px 4px 8px', fontSize: '12px', color: 'var(--c-text-4)', textDecoration: 'none' }}>
+            + Connect email
+          </Link>
         </div>
       </div>
 
