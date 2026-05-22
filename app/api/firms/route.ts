@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db/pg';
 import { v4 as uuid } from 'uuid';
+import { auth } from '@clerk/nextjs/server';
+import { rateLimit } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
+  // Rate limit public search: 30 req/min per IP
+  const ip = req.headers.get('x-forwarded-for') ?? 'unknown';
+  if (!rateLimit(`firms:${ip}`, 30, 60 * 1000)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+
   const { searchParams } = new URL(req.url);
   const city = searchParams.get('city')?.trim();
   const specialty = searchParams.get('specialty')?.trim();
@@ -43,6 +51,15 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  // Require auth to submit a firm listing
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Rate limit: 5 firm submissions per user per day
+  if (!rateLimit(`firms:post:${userId}`, 5, 24 * 60 * 60 * 1000)) {
+    return NextResponse.json({ error: 'Too many submissions' }, { status: 429 });
+  }
+
   const body = await req.json();
   const { name, city, postcode, specialties, bio, email, phone, website } = body;
   if (!name || !city || !email) {

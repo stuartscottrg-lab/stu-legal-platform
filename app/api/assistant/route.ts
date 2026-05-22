@@ -5,6 +5,7 @@ import path from 'path';
 import { getPersona, DEFAULT_PERSONA_ID } from '@/lib/personas';
 import { recallMemories, storeMemory } from '@/lib/memory/embeddings';
 import { auth } from '@clerk/nextjs/server';
+import { rateLimit } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,13 @@ export async function POST(req: NextRequest) {
     }
 
     const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // Rate limit: 60 AI requests per user per hour
+    if (!rateLimit(`assistant:${userId}`, 60, 60 * 60 * 1000)) {
+      return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 });
+    }
+
     const persona = getPersona(personaId ?? DEFAULT_PERSONA_ID);
 
     // Recall relevant memories for context
