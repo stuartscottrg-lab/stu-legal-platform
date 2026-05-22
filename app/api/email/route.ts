@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 
-const API_KEY = process.env.ANTHROPIC_API_KEY || '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';
+const API_KEY = process.env.ANTHROPIC_API_KEY;
+if (!API_KEY) {
+  throw new Error('ANTHROPIC_API_KEY is not set');
+}
 const anthropic = new Anthropic({ apiKey: API_KEY });
 
 export async function POST(req: NextRequest) {

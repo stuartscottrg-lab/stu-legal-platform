@@ -1,8 +1,9 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Paperclip, Sparkles, ArrowUp, RotateCcw, Search, ChevronRight, FileText, X, Brain, Upload, Mail, Inbox } from 'lucide-react';
+import { Paperclip, Sparkles, ArrowUp, RotateCcw, Search, ChevronRight, FileText, X, Brain, Upload, Mail, Inbox, Volume2, VolumeX } from 'lucide-react';
 import Link from 'next/link';
 import { PERSONAS, getPersona, DEFAULT_PERSONA_ID, type Persona } from '@/lib/personas';
+import { VoiceInput, speakText, stopSpeech } from '@/components/voice/VoiceInput';
 
 /* ── Email briefing strip ── */
 function EmailBriefingStrip({ onBrief }: { onBrief: (prompt: string) => void }) {
@@ -295,6 +296,7 @@ export default function AssistantPage() {
   // Drag-drop state
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
+  const [voiceMode, setVoiceMode] = useState(false);
   const dragCounter = useRef(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -474,7 +476,17 @@ export default function AssistantPage() {
     }
     setStreaming(false);
     setAttachedDocs([]);
-  }, [input, streaming, messages, selectedMatter, matters, attachedDocs, persona]);
+    // Auto-read response aloud if voice mode is on
+    setMessages(prev => {
+      if (voiceMode && prev.length > 0) {
+        const last = prev[prev.length - 1];
+        if (last.role === 'assistant' && last.content) {
+          speakText(last.content);
+        }
+      }
+      return prev;
+    });
+  }, [input, streaming, messages, selectedMatter, matters, attachedDocs, persona, voiceMode]);
 
   /* ── Shared input toolbar rows ── */
   const AttachedChips = () => (
@@ -584,6 +596,14 @@ export default function AssistantPage() {
                 <button onClick={() => setShowFiles(true)} style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', color: attachedDocs.length ? '#3b82f6' : 'var(--c-text-3)', cursor: 'pointer', fontFamily: 'inherit' }}>
                   <Paperclip size={12} /> {attachedDocs.length ? `${attachedDocs.length} file${attachedDocs.length > 1 ? 's' : ''}` : 'Files'}
                 </button>
+                <VoiceInput onTranscript={t => { setInput(p => p ? p + ' ' + t : t); }} disabled={streaming} />
+                <button
+                  onClick={() => { setVoiceMode(v => !v); if (voiceMode) stopSpeech(); }}
+                  title={voiceMode ? 'Voice responses on — click to mute' : 'Muted — click to hear Stu speak'}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: '50%', border: `1px solid ${voiceMode ? '#22c55e55' : 'var(--c-border)'}`, background: voiceMode ? 'rgba(34,197,94,0.07)' : 'none', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  {voiceMode ? <Volume2 size={13} color="#22c55e" /> : <VolumeX size={13} color="var(--c-text-4)" />}
+                </button>
                 <div style={{ flex: 1 }} />
                 <ModeSwitcher current={persona} onChange={handlePersonaChange} />
                 <button
@@ -689,6 +709,7 @@ export default function AssistantPage() {
               />
             )}
           </div>
+          <VoiceInput onTranscript={t => setInput(p => p ? p + ' ' + t : t)} />
           <div style={{ flex: 1 }} />
           {/* Mode switcher – just above/beside send button */}
           <ModeSwitcher current={persona} onChange={handlePersonaChange} />

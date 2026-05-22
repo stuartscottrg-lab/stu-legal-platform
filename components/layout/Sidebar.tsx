@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import {
   Sparkles, FolderOpen, Workflow, History, Library,
-  Mail, Clock, Search, Settings, Sun, Moon, ChevronDown, ChevronRight, Plus, Plug, Table2, LogOut,
+  Mail, Clock, Search, Settings, Sun, Moon, ChevronDown, ChevronRight, Plus, Plug, Table2, LogOut, Scale,
 } from 'lucide-react';
 import { useClerk } from '@clerk/nextjs';
 import { useConnectors } from '@/lib/hooks/useConnectors';
@@ -146,6 +146,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void } = {}) {
         {navItem('/email', <Mail size={14} />, 'Email Drafter')}
         {navItem('/timekeeping', <Clock size={14} />, 'Time Keeping')}
         {navItem('/templates', <History size={14} />, 'Templates')}
+        {navItem('/find-firms', <Scale size={14} />, 'Find a Firm')}
         {navItem('/connectors', <Plug size={14} />, 'Connectors', anyConnected ? undefined : 0)}
       </nav>
 
