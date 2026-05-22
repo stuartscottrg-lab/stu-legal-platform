@@ -1,14 +1,23 @@
-import { runMigrations, seedDatabase } from '@/lib/db/migrate';
 import Sidebar from '@/components/layout/Sidebar';
 
-// Force all dashboard routes to render on-demand (not at build time)
-// This prevents SQLITE_BUSY errors from concurrent static generation workers
+// All dashboard routes render on-demand, never at build time
 export const dynamic = 'force-dynamic';
 
-// Bootstrap DB on first render
-try { runMigrations(); seedDatabase().catch(console.error); } catch {}
+let dbReady = false;
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  // Init DB on first real request, not at build/module-load time
+  if (!dbReady) {
+    try {
+      const { runMigrations, seedDatabase } = await import('@/lib/db/migrate');
+      runMigrations();
+      await seedDatabase();
+      dbReady = true;
+    } catch (e) {
+      console.error('DB init error:', e);
+    }
+  }
+
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <Sidebar />
