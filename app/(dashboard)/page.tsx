@@ -1,73 +1,48 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Paperclip, Sparkles, ArrowUp, RotateCcw, Search, ChevronDown, ChevronRight, FileText, X, Brain } from 'lucide-react';
+import { Paperclip, Sparkles, ArrowUp, RotateCcw, Search, ChevronRight, FileText, X, Brain, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { PERSONAS, getPersona, DEFAULT_PERSONA_ID, type Persona } from '@/lib/personas';
 
 interface Msg { role: string; content: string; thinking?: string; thinkingOpen?: boolean; }
 interface Matter { id: string; title: string; client_name: string; }
-interface Doc { id: string; original_name: string; matter_title: string; }
+interface Doc { id: string; original_name: string; matter_title?: string; extracted_text?: string; }
 
-/* ── Persona switcher ── */
-function PersonaSwitcher({ current, onChange }: { current: Persona; onChange: (p: Persona) => void }) {
-  const [open, setOpen] = useState(false);
+/* ── Inline mode switcher ── */
+function ModeSwitcher({ current, onChange }: { current: Persona; onChange: (p: Persona) => void }) {
+  const modeLabels: Record<string, string> = {
+    alpha: 'Simple',
+    sigma: 'Strategic',
+    omega: 'Creative',
+  };
   return (
-    <div style={{ position: 'relative' }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        style={{
-          display: 'flex', alignItems: 'center', gap: '8px',
-          background: current.bgColor, border: `1px solid ${current.color}33`,
-          borderRadius: '20px', padding: '5px 12px 5px 6px',
-          cursor: 'pointer', transition: 'all 0.15s',
-        }}
-      >
-        <span style={{
-          width: 22, height: 22, borderRadius: '50%',
-          background: current.color, color: '#fff',
-          fontSize: '10px', fontWeight: '700',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
-        }}>{current.initials}</span>
-        <span style={{ fontSize: '12px', fontWeight: '600', color: current.color }}>{current.name}</span>
-        <ChevronDown size={11} color={current.color} />
-      </button>
-      {open && (
-        <>
-          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 50 }} />
-          <div style={{
-            position: 'absolute', top: 'calc(100% + 8px)', left: 0,
-            background: 'var(--c-card)', border: '1px solid var(--c-border)',
-            borderRadius: '14px', padding: '8px', zIndex: 51,
-            width: '280px', boxShadow: '0 12px 40px rgba(0,0,0,0.2)',
-          }}>
-            <p style={{ fontSize: '10px', fontWeight: '600', color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '4px 8px 8px' }}>Choose your lawyer</p>
-            {PERSONAS.map(p => (
-              <button
-                key={p.id}
-                onClick={() => { onChange(p); setOpen(false); }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '12px', width: '100%',
-                  textAlign: 'left', background: p.id === current.id ? p.bgColor : 'none',
-                  border: p.id === current.id ? `1px solid ${p.color}33` : '1px solid transparent',
-                  borderRadius: '10px', padding: '10px 10px', cursor: 'pointer',
-                  transition: 'all 0.1s', marginBottom: '2px',
-                }}
-              >
-                <span style={{
-                  width: 34, height: 34, borderRadius: '50%', background: p.color,
-                  color: '#fff', fontSize: '13px', fontWeight: '700', flexShrink: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>{p.initials}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--c-text)', marginBottom: '2px' }}>{p.name} <span style={{ fontSize: '11px', color: p.color, fontWeight: '500' }}>· {p.title}</span></div>
-                  <div style={{ fontSize: '11px', color: 'var(--c-text-3)' }}>{p.style}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'var(--c-panel)', borderRadius: '8px', padding: '3px' }}>
+      {PERSONAS.map(p => {
+        const active = p.id === current.id;
+        return (
+          <button
+            key={p.id}
+            onClick={() => onChange(p)}
+            title={p.description}
+            style={{
+              padding: '4px 10px',
+              borderRadius: '6px',
+              border: 'none',
+              background: active ? 'var(--c-card)' : 'transparent',
+              boxShadow: active ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+              fontSize: '12px',
+              fontWeight: active ? '600' : '400',
+              color: active ? 'var(--c-text)' : 'var(--c-text-3)',
+              cursor: 'pointer',
+              transition: 'all 0.12s',
+              fontFamily: 'inherit',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {modeLabels[p.id] ?? p.name}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -103,7 +78,7 @@ function ThinkingBlock({ thinking, open, onToggle }: { thinking: string; open: b
       >
         <Brain size={11} color="#8b5cf6" />
         <span style={{ color: '#8b5cf6', fontWeight: '500' }}>See the thought process</span>
-        {open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+        {open ? <span style={{ fontSize: '10px', color: 'var(--c-text-3)' }}>▲</span> : <ChevronRight size={10} />}
       </button>
       {open && (
         <div style={{
@@ -134,7 +109,6 @@ function formatAI(text: string) {
         if (line.startsWith('**') && line.endsWith('**')) return <p key={i} style={{ fontWeight: '600', margin: '8px 0' }}>{line.slice(2, -2)}</p>;
         if (line.startsWith('- ') || line.startsWith('• ')) {
           const content = line.slice(2);
-          // handle inline bold
           const parts = content.split(/\*\*(.+?)\*\*/g);
           return (
             <p key={i} style={{ paddingLeft: '14px', margin: '4px 0', color: 'var(--c-text)' }}>
@@ -142,7 +116,6 @@ function formatAI(text: string) {
             </p>
           );
         }
-        // handle inline bold in regular paragraphs
         const parts = line.split(/\*\*(.+?)\*\*/g);
         return (
           <p key={i} style={{ margin: '6px 0', color: 'var(--c-text)' }}>
@@ -180,7 +153,7 @@ function FilesModal({ onClose, onAttach }: { onClose: () => void; onAttach: (doc
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3)', display: 'flex' }}><X size={16} /></button>
         </div>
         <p style={{ fontSize: '12px', color: 'var(--c-text-3)', marginBottom: '14px' }}>
-          Select documents to include as context in your message. Their extracted text will be sent to Stu.
+          Select documents to include as context in your message.
         </p>
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {docs.length === 0 && (
@@ -199,7 +172,7 @@ function FilesModal({ onClose, onAttach }: { onClose: () => void; onAttach: (doc
               <FileText size={13} color="var(--c-text-3)" style={{ flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '13px', color: 'var(--c-text)', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.original_name}</div>
-                <div style={{ fontSize: '11px', color: 'var(--c-text-3)' }}>{d.matter_title}</div>
+                {d.matter_title && <div style={{ fontSize: '11px', color: 'var(--c-text-3)' }}>{d.matter_title}</div>}
               </div>
             </label>
           ))}
@@ -264,6 +237,10 @@ export default function AssistantPage() {
   const [showPrompts, setShowPrompts] = useState(false);
   const [persona, setPersona] = useState<Persona>(getPersona(DEFAULT_PERSONA_ID));
   const [mounted, setMounted] = useState(false);
+  // Drag-drop state
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const dragCounter = useRef(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -287,6 +264,71 @@ export default function AssistantPage() {
     if (messages.length > 0) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // ── Global drag-drop handlers ──────────────────────────────────────────
+  const uploadDroppedFile = useCallback(async (file: File) => {
+    setUploading(file.name);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
+      const { id, error } = await res.json();
+      if (error || !id) throw new Error(error || 'Upload failed');
+
+      // Poll for text extraction (up to 30s)
+      let text = '';
+      for (let i = 0; i < 20; i++) {
+        await new Promise(r => setTimeout(r, 1500));
+        const doc = await fetch(`/api/documents/${id}`).then(r => r.json());
+        if (doc.status === 'ready') {
+          text = doc.extracted_text || '';
+          break;
+        }
+      }
+
+      setAttachedDocs(prev => [...prev, {
+        id,
+        original_name: file.name,
+        extracted_text: text,
+      }]);
+    } catch (e: any) {
+      console.error('Drop upload failed:', e);
+    } finally {
+      setUploading(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    const onDragEnter = (e: DragEvent) => {
+      e.preventDefault();
+      dragCounter.current++;
+      if (dragCounter.current === 1) setIsDragging(true);
+    };
+    const onDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      dragCounter.current--;
+      if (dragCounter.current === 0) setIsDragging(false);
+    };
+    const onDragOver = (e: DragEvent) => { e.preventDefault(); };
+    const onDrop = (e: DragEvent) => {
+      e.preventDefault();
+      dragCounter.current = 0;
+      setIsDragging(false);
+      const files = Array.from(e.dataTransfer?.files || []);
+      files.forEach(uploadDroppedFile);
+    };
+
+    document.addEventListener('dragenter', onDragEnter);
+    document.addEventListener('dragleave', onDragLeave);
+    document.addEventListener('dragover', onDragOver);
+    document.addEventListener('drop', onDrop);
+    return () => {
+      document.removeEventListener('dragenter', onDragEnter);
+      document.removeEventListener('dragleave', onDragLeave);
+      document.removeEventListener('dragover', onDragOver);
+      document.removeEventListener('drop', onDrop);
+    };
+  }, [uploadDroppedFile]);
+
   const toggleThinking = (idx: number) => {
     setMessages(prev => prev.map((m, i) => i === idx ? { ...m, thinkingOpen: !m.thinkingOpen } : m));
   };
@@ -297,12 +339,17 @@ export default function AssistantPage() {
     setInput('');
     setShowPrompts(false);
 
-    // Build context string
     const matterCtx = selectedMatter ? matters.find(m => m.id === selectedMatter) : null;
     let ctx = '';
     if (matterCtx) ctx += `[Matter: ${matterCtx.title} — ${matterCtx.client_name}]\n\n`;
     if (attachedDocs.length > 0) {
-      ctx += `[Attached documents for context: ${attachedDocs.map(d => d.original_name).join(', ')}]\n`;
+      for (const doc of attachedDocs) {
+        if (doc.extracted_text) {
+          ctx += `[Document: ${doc.original_name}]\n${doc.extracted_text}\n\n`;
+        } else {
+          ctx += `[Attached: ${doc.original_name}]\n`;
+        }
+      }
     }
     const apiContent = ctx ? `${ctx}${content}` : content;
 
@@ -372,22 +419,56 @@ export default function AssistantPage() {
     }
     setStreaming(false);
     setAttachedDocs([]);
-  }, [input, streaming, messages, selectedMatter, matters, attachedDocs]);
+  }, [input, streaming, messages, selectedMatter, matters, attachedDocs, persona]);
+
+  /* ── Shared input toolbar rows ── */
+  const AttachedChips = () => (
+    <>
+      {(uploading || attachedDocs.length > 0) && (
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', padding: '8px 14px 0' }}>
+          {uploading && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'rgba(100,100,100,0.1)', border: '1px solid var(--c-border)', borderRadius: '20px', padding: '3px 8px', fontSize: '11px', color: 'var(--c-text-3)' }}>
+              <Upload size={10} style={{ animation: 'spin 1s linear infinite' }} />
+              <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+              Uploading {uploading}…
+            </span>
+          )}
+          {attachedDocs.map(d => (
+            <span key={d.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '20px', padding: '3px 8px', fontSize: '11px', color: '#3b82f6' }}>
+              <FileText size={10} /> {d.original_name}
+              <button onClick={() => setAttachedDocs(p => p.filter(x => x.id !== d.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6', padding: 0, display: 'flex' }}><X size={10} /></button>
+            </span>
+          ))}
+        </div>
+      )}
+    </>
+  );
 
   // ─── Conversation view ─────────────────────────────────────────────────
   if (messages.length > 0) {
     return (
       <div className="chat-page" style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'var(--c-bg)' }}>
+        {/* Drag overlay */}
+        {isDragging && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(34,197,94,0.12)', border: '3px dashed #22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+            <div style={{ textAlign: 'center', color: '#16a34a' }}>
+              <Upload size={32} style={{ marginBottom: '10px' }} />
+              <div style={{ fontSize: '16px', fontWeight: '600' }}>Drop to attach</div>
+              <div style={{ fontSize: '13px', opacity: 0.7, marginTop: '4px' }}>PDF, DOCX or TXT</div>
+            </div>
+          </div>
+        )}
+
         {showFiles && <FilesModal onClose={() => setShowFiles(false)} onAttach={docs => setAttachedDocs(docs)} />}
 
         {/* Header */}
         <div style={{ flexShrink: 0, borderBottom: '1px solid var(--c-border)', padding: '0 16px', height: '52px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <PersonaSwitcher current={persona} onChange={handlePersonaChange} />
+          <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--c-text)' }}>Stu</span>
           <div style={{ flex: 1 }} />
           <span style={{ fontSize: '12px', color: 'var(--c-text-3)' }}>
             {selectedMatter ? matters.find(m => m.id === selectedMatter)?.title : ''}
           </span>
-          <button onClick={() => { setMessages([]); setInput(''); setAttachedDocs([]); }} style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: '1px solid var(--c-border)', borderRadius: '6px', padding: '5px 10px', fontSize: '12px', color: 'var(--c-text-2)', cursor: 'pointer' }}>
+          <button onClick={() => { setMessages([]); setInput(''); setAttachedDocs([]); }} style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: '1px solid var(--c-border)', borderRadius: '6px', padding: '5px 10px', fontSize: '12px', color: 'var(--c-text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
             <RotateCcw size={11} /> New
           </button>
         </div>
@@ -404,7 +485,6 @@ export default function AssistantPage() {
                   <div style={{ fontSize: '14px', color: 'var(--c-text)', lineHeight: '1.7' }}>{msg.content}</div>
                 ) : (
                   <div>
-                    {/* Thinking block */}
                     {msg.thinking && (
                       <ThinkingBlock
                         thinking={msg.thinking}
@@ -412,7 +492,6 @@ export default function AssistantPage() {
                         onToggle={() => toggleThinking(i)}
                       />
                     )}
-                    {/* Response */}
                     {msg.content ? (
                       formatAI(msg.content)
                     ) : streaming && i === messages.length - 1 ? (
@@ -434,17 +513,8 @@ export default function AssistantPage() {
         {/* Pinned input */}
         <div className="chat-input-bar" style={{ flexShrink: 0, background: 'var(--c-bg)', borderTop: '1px solid var(--c-border)', padding: '12px 24px 16px' }}>
           <div style={{ maxWidth: '720px', margin: '0 auto' }}>
-            {attachedDocs.length > 0 && (
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                {attachedDocs.map(d => (
-                  <span key={d.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '20px', padding: '3px 8px', fontSize: '11px', color: '#3b82f6' }}>
-                    <FileText size={10} /> {d.original_name}
-                    <button onClick={() => setAttachedDocs(p => p.filter(x => x.id !== d.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6', padding: 0, display: 'flex' }}><X size={10} /></button>
-                  </span>
-                ))}
-              </div>
-            )}
             <div style={{ background: 'var(--c-card)', border: '1px solid var(--c-border)', borderRadius: '14px', boxShadow: 'var(--c-shadow-md)', overflow: 'hidden' }}>
+              <AttachedChips />
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -454,11 +524,13 @@ export default function AssistantPage() {
                 rows={2}
                 style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', padding: '14px 16px 6px', fontSize: '13.5px', color: 'var(--c-text)', resize: 'none', fontFamily: 'inherit', lineHeight: '1.6' }}
               />
+              {/* Mode + actions row */}
               <div style={{ display: 'flex', alignItems: 'center', padding: '6px 10px 10px', gap: '6px', position: 'relative' }}>
-                <button onClick={() => setShowFiles(true)} style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', color: attachedDocs.length ? '#3b82f6' : 'var(--c-text-3)', cursor: 'pointer' }}>
+                <button onClick={() => setShowFiles(true)} style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', color: attachedDocs.length ? '#3b82f6' : 'var(--c-text-3)', cursor: 'pointer', fontFamily: 'inherit' }}>
                   <Paperclip size={12} /> {attachedDocs.length ? `${attachedDocs.length} file${attachedDocs.length > 1 ? 's' : ''}` : 'Files'}
                 </button>
                 <div style={{ flex: 1 }} />
+                <ModeSwitcher current={persona} onChange={handlePersonaChange} />
                 <button
                   onClick={() => send()}
                   disabled={!input.trim() || streaming}
@@ -477,6 +549,17 @@ export default function AssistantPage() {
   // ─── Landing / empty state ──────────────────────────────────────────────
   return (
     <div className="assistant-landing" style={{ minHeight: '100dvh', background: 'var(--c-bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 24px 80px', position: 'relative' }}>
+      {/* Drag overlay */}
+      {isDragging && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(34,197,94,0.12)', border: '3px dashed #22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          <div style={{ textAlign: 'center', color: '#16a34a' }}>
+            <Upload size={32} style={{ marginBottom: '10px' }} />
+            <div style={{ fontSize: '16px', fontWeight: '600' }}>Drop to attach</div>
+            <div style={{ fontSize: '13px', opacity: 0.7, marginTop: '4px' }}>PDF, DOCX or TXT</div>
+          </div>
+        </div>
+      )}
+
       {showFiles && <FilesModal onClose={() => setShowFiles(false)} onAttach={docs => setAttachedDocs(docs)} />}
 
       {/* Top-right utilities */}
@@ -486,26 +569,15 @@ export default function AssistantPage() {
         </Link>
       </div>
 
-      {/* Persona avatar + wordmark */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px', gap: '12px' }}>
-        <div style={{
-          width: 64, height: 64, borderRadius: '50%',
-          background: persona.color, color: '#fff',
-          fontSize: '22px', fontWeight: '700',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: `0 8px 24px ${persona.color}44`,
-          transition: 'all 0.3s',
-        }}>{persona.initials}</div>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--c-text)', letterSpacing: '-0.5px' }}>{persona.name}</div>
-          <div style={{ fontSize: '12px', color: 'var(--c-text-3)', marginTop: '2px' }}>{persona.title}</div>
-        </div>
-        <PersonaSwitcher current={persona} onChange={handlePersonaChange} />
+      {/* Wordmark */}
+      <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+        <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--c-text)', letterSpacing: '-0.5px' }}>Stu</div>
+        <div style={{ fontSize: '13px', color: 'var(--c-text-3)', marginTop: '4px' }}>Your AI legal assistant</div>
       </div>
 
       {/* Context selector */}
       {matters.length > 0 && (
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', flexWrap: 'wrap', justifyContent: 'center' }}>
           <select
             value={selectedMatter}
             onChange={e => setSelectedMatter(e.target.value)}
@@ -527,41 +599,31 @@ export default function AssistantPage() {
         </div>
       )}
 
-      {/* Attached docs chips */}
-      {attachedDocs.length > 0 && (
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '10px' }}>
-          {attachedDocs.map(d => (
-            <span key={d.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '20px', padding: '3px 8px', fontSize: '11px', color: '#3b82f6' }}>
-              <FileText size={10} /> {d.original_name}
-              <button onClick={() => setAttachedDocs(p => p.filter(x => x.id !== d.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6', padding: 0, display: 'flex' }}><X size={10} /></button>
-            </span>
-          ))}
-        </div>
-      )}
-
       {/* Main input */}
       <div style={{ width: '100%', maxWidth: '720px', background: 'var(--c-card)', border: '1px solid var(--c-border)', borderRadius: '18px', boxShadow: 'var(--c-shadow-md)', overflow: 'hidden', marginBottom: '14px' }}>
+        <AttachedChips />
         <textarea
           ref={textareaRef}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-          placeholder={`Ask ${persona.name} anything…`}
+          placeholder="Ask Stu anything…"
           rows={4}
           style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', padding: '18px 20px 8px', fontSize: '14.5px', color: 'var(--c-text)', resize: 'none', fontFamily: 'inherit', lineHeight: '1.6' }}
           autoFocus
         />
+        {/* Bottom toolbar */}
         <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px 14px', gap: '6px', borderTop: '1px solid var(--c-border)', position: 'relative' }}>
           <button
             onClick={() => setShowFiles(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', color: attachedDocs.length ? '#3b82f6' : 'var(--c-text-3)', cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', color: attachedDocs.length ? '#3b82f6' : 'var(--c-text-3)', cursor: 'pointer', fontFamily: 'inherit' }}
           >
-            <Paperclip size={12} /> {attachedDocs.length ? `${attachedDocs.length} file${attachedDocs.length > 1 ? 's' : ''} attached` : 'Files and sources'}
+            <Paperclip size={12} /> {attachedDocs.length ? `${attachedDocs.length} file${attachedDocs.length > 1 ? 's' : ''} attached` : 'Files'}
           </button>
           <div style={{ position: 'relative' }}>
             <button
               onClick={() => setShowPrompts(p => !p)}
-              style={{ display: 'flex', alignItems: 'center', gap: '5px', background: showPrompts ? 'var(--c-panel)' : 'none', border: 'none', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', color: 'var(--c-text-3)', cursor: 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', background: showPrompts ? 'var(--c-panel)' : 'none', border: 'none', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', color: 'var(--c-text-3)', cursor: 'pointer', fontFamily: 'inherit' }}
             >
               <Sparkles size={12} /> Prompts
             </button>
@@ -573,6 +635,8 @@ export default function AssistantPage() {
             )}
           </div>
           <div style={{ flex: 1 }} />
+          {/* Mode switcher – just above/beside send button */}
+          <ModeSwitcher current={persona} onChange={handlePersonaChange} />
           <button
             onClick={() => send()}
             disabled={!input.trim()}
@@ -583,10 +647,10 @@ export default function AssistantPage() {
               fontSize: '13px', fontWeight: '600',
               cursor: input.trim() ? 'pointer' : 'default',
               display: 'flex', alignItems: 'center', gap: '6px',
-              transition: 'all 0.15s',
+              transition: 'all 0.15s', fontFamily: 'inherit',
             }}
           >
-            Ask {persona.name}
+            Ask <ArrowUp size={12} />
           </button>
         </div>
       </div>
@@ -605,7 +669,6 @@ export default function AssistantPage() {
               {p.label}
             </span>
           ))}
-
           <Link href="/connectors" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'transparent', border: '1px dashed var(--c-border)', borderRadius: '20px', padding: '4px 10px 4px 8px', fontSize: '12px', color: 'var(--c-text-4)', textDecoration: 'none' }}>
             + Connect email
           </Link>
@@ -623,7 +686,7 @@ export default function AssistantPage() {
             <button
               key={w.label}
               onClick={() => send(w.prompt)}
-              style={{ textAlign: 'left', background: 'var(--c-panel)', border: '1px solid var(--c-border)', borderRadius: '10px', padding: '14px 14px 12px', cursor: 'pointer', transition: 'border-color 0.12s' }}
+              style={{ textAlign: 'left', background: 'var(--c-panel)', border: '1px solid var(--c-border)', borderRadius: '10px', padding: '14px 14px 12px', cursor: 'pointer', transition: 'border-color 0.12s', fontFamily: 'inherit' }}
               onMouseOver={e => (e.currentTarget.style.borderColor = 'var(--c-border-s)')}
               onMouseOut={e => (e.currentTarget.style.borderColor = 'var(--c-border)')}
             >

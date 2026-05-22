@@ -4,15 +4,50 @@ import { generateAnnotations } from '@/lib/ai';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
+import Anthropic from '@anthropic-ai/sdk';
 
 const UPLOAD_DIR = process.env.DATA_DIR
   ? path.join(process.env.DATA_DIR, 'uploads')
   : path.join(process.cwd(), 'uploads');
 
+async function extractTextFromPDFWithClaude(buf: Buffer): Promise<string> {
+  try {
+    const client = new Anthropic();
+    const base64 = buf.toString('base64');
+    const response = await client.messages.create({
+      model: 'claude-opus-4-5',
+      max_tokens: 4096,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'document',
+            source: {
+              type: 'base64',
+              media_type: 'application/pdf',
+              data: base64,
+            },
+          } as any,
+          {
+            type: 'text',
+            text: 'Extract all the text content from this PDF document. Return only the extracted text, preserving paragraphs and structure. Do not add any commentary or preamble.',
+          },
+        ],
+      }],
+    });
+    const block = response.content[0];
+    return block.type === 'text' ? block.text.trim() : '';
+  } catch (e) {
+    console.error('Claude PDF extraction error:', e);
+    return '';
+  }
+}
+
 async function extractText(buf: Buffer, mime: string, name: string): Promise<string> {
   const lname = name.toLowerCase();
 
   if (mime === 'application/pdf' || lname.endsWith('.pdf')) {
+    // Try fast text extraction first
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const pdfParse = require('pdf-parse');
@@ -22,7 +57,9 @@ async function extractText(buf: Buffer, mime: string, name: string): Promise<str
     } catch (e) {
       console.error('pdf-parse error:', e);
     }
-    return ''; // Return empty rather than raw binary garbage
+    // Fall back to Claude vision for image-based / scanned PDFs
+    console.log('pdf-parse returned insufficient text, trying Claude vision...');
+    return extractTextFromPDFWithClaude(buf);
   }
 
   if (lname.endsWith('.docx') || mime.includes('wordprocessingml')) {
