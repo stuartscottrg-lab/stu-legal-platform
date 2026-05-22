@@ -47,12 +47,12 @@ export async function POST(req: NextRequest) {
   try {
     const fd = await req.formData();
     const file = fd.get('file') as File;
-    const matterId = fd.get('matterId') as string;
-    if (!file || !matterId) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+    const matterId = (fd.get('matterId') as string) || null;
+    if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
 
     const docId = uuidv4();
     const ext = file.name.split('.').pop()?.toLowerCase() || 'txt';
-    const dir = path.join(UPLOAD_DIR, matterId);
+    const dir = path.join(UPLOAD_DIR, matterId || '_library');
     fs.mkdirSync(dir, { recursive: true });
     const storagePath = path.join(dir, `${docId}.${ext}`);
     const buf = Buffer.from(await file.arrayBuffer());
