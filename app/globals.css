@@ -1,26 +1,172 @@
 @import "tailwindcss";
 
+/* ─── Light mode (default) ─── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --c-bg:          #ffffff;
+  --c-sidebar:     #f7f7f5;
+  --c-panel:       #f4f4f1;
+  --c-card:        #ffffff;
+  --c-input:       #ffffff;
+  --c-border:      #e5e4e0;
+  --c-border-s:    #d0cfcb;
+  --c-text:        #1a1a1a;
+  --c-text-2:      #6b6b6b;
+  --c-text-3:      #9b9b9b;
+  --c-text-4:      #c5c4c0;
+  --c-accent-bg:   #1a1a1a;
+  --c-accent-text: #ffffff;
+  --c-hover:       rgba(0,0,0,0.04);
+  --c-active:      rgba(0,0,0,0.07);
+  --c-shadow:      0 1px 6px rgba(0,0,0,0.06);
+  --c-shadow-md:   0 4px 20px rgba(0,0,0,0.08);
+  --risk-high:     #dc2626;
+  --risk-medium:   #d97706;
+  --risk-low:      #16a34a;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ─── Dark mode ─── */
+[data-theme="dark"] {
+  --c-bg:          #0f0f0f;
+  --c-sidebar:     #111111;
+  --c-panel:       #141414;
+  --c-card:        #1a1a1a;
+  --c-input:       #0f0f0f;
+  --c-border:      #222222;
+  --c-border-s:    #333333;
+  --c-text:        #f0f0f0;
+  --c-text-2:      #777777;
+  --c-text-3:      #555555;
+  --c-text-4:      #333333;
+  --c-accent-bg:   #ffffff;
+  --c-accent-text: #0f0f0f;
+  --c-hover:       rgba(255,255,255,0.04);
+  --c-active:      rgba(255,255,255,0.07);
+  --c-shadow:      0 1px 6px rgba(0,0,0,0.4);
+  --c-shadow-md:   0 4px 20px rgba(0,0,0,0.5);
+  --risk-high:     #ef4444;
+  --risk-medium:   #f59e0b;
+  --risk-low:      #22c55e;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  /* Kill the black mobile tap flash globally */
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.2s, color 0.2s;
 }
+
+/* ─── Reset browser button/link flash ─── */
+button {
+  -webkit-appearance: none;
+  appearance: none;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* Suppress the browser's dark active flash on clicks */
+button:active,
+a:active {
+  background-color: transparent;
+  color: inherit;
+}
+
+/* Remove default blue link colour */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Clean focus ring — only show for keyboard nav, not mouse clicks */
+:focus-visible {
+  outline: 2px solid var(--c-border-s);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Stop select elements going dark on click in webkit */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* Input resets */
+input, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: transparent;
+}
+input::placeholder, textarea::placeholder {
+  color: var(--c-text-3);
+}
+
+/* Sidebar & nav link hover — light background, no flash */
+.nav-link {
+  transition: background 0.1s, color 0.1s;
+}
+.nav-link:hover {
+  background: var(--c-hover) !important;
+}
+.nav-link:active {
+  background: var(--c-active) !important;
+}
+
+/* Card hover */
+.card-link:hover {
+  border-color: var(--c-border-s) !important;
+}
+.card-link:active {
+  background: var(--c-panel) !important;
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--c-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--c-border-s); }
+
+.annotation-high   { background: rgba(220,38,38,0.12); border-bottom: 2px solid var(--risk-high); cursor: pointer; }
+.annotation-medium { background: rgba(217,119,6,0.12); border-bottom: 2px solid var(--risk-medium); cursor: pointer; }
+.annotation-low    { background: rgba(22,163,74,0.12); border-bottom: 2px solid var(--risk-low); cursor: pointer; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.animate-spin { animation: spin 0.8s linear infinite; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.2s ease-out forwards; }
+
+/* Prose content from AI */
+.prose-content { line-height: 1.8; color: var(--c-text); }
+.prose-content h1, .prose-content h2, .prose-content h3 { font-weight: 600; margin: 1.2em 0 0.5em; color: var(--c-text); }
+.prose-content h1 { font-size: 1.25em; }
+.prose-content h2 { font-size: 1.1em; }
+.prose-content h3 { font-size: 1em; }
+.prose-content p { margin: 0.75em 0; }
+.prose-content ul, .prose-content ol { padding-left: 1.5em; margin: 0.75em 0; }
+.prose-content li { margin: 0.3em 0; }
+.prose-content strong { font-weight: 600; }
+.prose-content code { background: var(--c-panel); border: 1px solid var(--c-border); border-radius: 4px; padding: 1px 5px; font-size: 0.875em; font-family: 'SF Mono', 'Fira Code', monospace; }
+.prose-content hr { border: none; border-top: 1px solid var(--c-border); margin: 1.5em 0; }
