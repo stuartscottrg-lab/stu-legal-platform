@@ -9,8 +9,29 @@ interface Props {
 }
 
 /* ── Annotated text renderer ── */
-function AnnotatedText({ text, annotations }: { text: string; annotations: any[] }) {
+function AnnotatedText({ text, annotations, docId, onReady }: { text: string; annotations: any[]; docId: string; onReady: (doc: any) => void }) {
   const [tooltip, setTooltip] = useState<any>(null);
+
+  // Poll until extraction completes
+  useEffect(() => {
+    if (text) return; // already have text
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/documents/${docId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.extracted_text || data.status === 'ready') {
+          if (!cancelled) onReady(data);
+          return;
+        }
+      } catch {}
+      if (!cancelled) setTimeout(poll, 2500);
+    };
+    poll();
+    return () => { cancelled = true; };
+  }, [text, docId, onReady]);
+
   if (!text) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', color: 'var(--c-text-3)', fontSize: '13px', gap: '8px' }}>
       <Loader2 size={20} className="animate-spin" />
@@ -262,21 +283,27 @@ export default function DocumentReviewClient({ doc, matter, annotations, initial
   const [panel, setPanel] = useState<'workflows'|'chat'>('workflows');
   const [docStatus, setDocStatus] = useState(doc.status);
   const [liveAnnotations, setLiveAnnotations] = useState(annotations);
+  const [liveText, setLiveText] = useState<string>(doc.extracted_text || '');
 
   useEffect(() => {
     if (docStatus !== 'processing') return;
-    const id = setInterval(async () => {
-      const res = await fetch(`/api/documents/${doc.id}/status`);
-      const data = await res.json();
-      if (data.status === 'ready') {
-        setDocStatus('ready');
-        // Re-fetch doc with annotations
+    let cancelled = false;
+    const poll = async () => {
+      try {
         const full = await fetch(`/api/documents/${doc.id}`).then(r => r.json());
-        if (full.annotations) setLiveAnnotations(full.annotations);
-        clearInterval(id);
-      }
-    }, 3000);
-    return () => clearInterval(id);
+        if (full.status === 'ready' || full.extracted_text) {
+          if (!cancelled) {
+            setDocStatus('ready');
+            setLiveText(full.extracted_text || '');
+            setLiveAnnotations(full.annotations || []);
+          }
+          return;
+        }
+      } catch {}
+      if (!cancelled) setTimeout(poll, 2500);
+    };
+    poll();
+    return () => { cancelled = true; };
   }, [docStatus, doc.id]);
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
@@ -303,12 +330,12 @@ export default function DocumentReviewClient({ doc, matter, annotations, initial
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Document viewer */}
         <div style={{ flex: 1, overflowY: 'auto', background: 'var(--c-card)' }}>
-          {docStatus === 'processing'
+          {!liveText
             ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '14px' }}>
                 <Loader2 size={22} color="#555" className="animate-spin" />
                 <p style={{ color: 'var(--c-text-2)', fontSize: '13px' }}>Extracting text and analysing document…</p>
               </div>
-            : <AnnotatedText text={doc.extracted_text} annotations={liveAnnotations} />
+            : <AnnotatedText text={liveText} annotations={liveAnnotations} docId={doc.id} onReady={(d) => { setLiveText(d.extracted_text || ''); setLiveAnnotations(d.annotations || []); setDocStatus('ready'); }} />
           }
         </div>
 

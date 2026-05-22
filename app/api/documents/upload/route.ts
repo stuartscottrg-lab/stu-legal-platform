@@ -5,7 +5,9 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
 
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
+const UPLOAD_DIR = process.env.DATA_DIR
+  ? path.join(process.env.DATA_DIR, 'uploads')
+  : path.join(process.cwd(), 'uploads');
 
 async function extractText(buf: Buffer, mime: string, name: string): Promise<string> {
   const lname = name.toLowerCase();

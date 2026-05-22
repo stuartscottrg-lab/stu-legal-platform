@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { Mail, Copy, Check, RotateCcw, Plus, Trash2, ChevronRight, Send, Users, Sparkles } from 'lucide-react';
+import { Mail, Copy, Check, RotateCcw, Plus, Trash2, ChevronRight, Send, Users, Sparkles, Lock, Zap } from 'lucide-react';
 
 /* ─── Email Drafter types / data ─── */
 
@@ -447,6 +447,22 @@ function LeadOutreach() {
           {error && <div style={{ marginTop: '10px', fontSize: '12px', color: '#c0392b', padding: '8px 10px', background: 'rgba(220,38,38,0.08)', borderRadius: '6px' }}>{error}</div>}
         </div>
 
+        {/* Mass outreach — locked */}
+        <div style={{ ...s.panel, background: 'linear-gradient(135deg, var(--c-panel) 0%, rgba(99,102,241,0.06) 100%)', border: '1px solid rgba(99,102,241,0.2)', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: 0, right: 0, background: 'rgba(99,102,241,0.08)', padding: '4px 10px', borderBottomLeftRadius: '8px', fontSize: '10px', fontWeight: '600', color: '#6366f1', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Coming soon</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+            <Zap size={16} color="#6366f1" />
+            <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--c-text)' }}>Mass outreach campaign</span>
+          </div>
+          <p style={{ fontSize: '12px', color: 'var(--c-text-3)', lineHeight: '1.6', marginBottom: '14px' }}>
+            Upload a prospect list, personalise with AI at scale, and send to thousands of potential clients in one click — with smart scheduling, reply tracking, and follow-up sequences built in.
+          </p>
+          <button disabled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', padding: '11px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', color: '#6366f1', cursor: 'not-allowed', opacity: 0.8 }}>
+            <Lock size={13} />
+            Generate &amp; send to 1,000s of prospects
+          </button>
+        </div>
+
         {/* Draft output */}
         <div style={{ ...s.panel, minHeight: '320px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -528,39 +544,32 @@ function LeadOutreach() {
 /* ═══════════════════════════════════════════
    PAGE ROOT
 ═══════════════════════════════════════════ */
-type Tab = 'drafter' | 'outreach';
-
 export default function EmailPage() {
-  const [tab, setTab] = useState<Tab>('drafter');
-
-  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'drafter',  label: 'Email Drafter',  icon: <Mail size={13} /> },
-    { id: 'outreach', label: 'Lead Outreach',  icon: <Users size={13} /> },
-  ];
-
   return (
-    <div style={{ padding: '40px', maxWidth: tab === 'outreach' ? '1240px' : '1100px' }}>
-      {/* Page header */}
+    <div style={{ padding: '40px', maxWidth: '1240px' }}>
+      {/* Email Drafter */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
         <Mail size={18} color="var(--c-text-3)" />
-        <h1 style={{ fontSize: '20px', fontWeight: '600', color: 'var(--c-text)', margin: 0 }}>Email</h1>
+        <h1 style={{ fontSize: '20px', fontWeight: '600', color: 'var(--c-text)', margin: 0 }}>Email Drafter</h1>
       </div>
       <p style={{ fontSize: '13px', color: 'var(--c-text-3)', marginBottom: '24px', marginTop: '4px' }}>
-        {tab === 'drafter' ? 'Describe what the email needs to do — Stu writes it.' : 'Generate personalised legal outreach and track your prospects.'}
+        Describe what the email needs to do — Stu writes it.
       </p>
+      <EmailDrafter />
 
-      {/* Tab bar */}
-      <div style={{ display: 'flex', gap: '2px', marginBottom: '24px', padding: '3px', background: 'var(--c-panel)', borderRadius: '10px', width: 'fit-content', border: '1px solid var(--c-border)' }}>
-        {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 16px', borderRadius: '7px', fontSize: '13px', fontWeight: tab === t.id ? '500' : '400', cursor: 'pointer', border: 'none', background: tab === t.id ? 'var(--c-bg)' : 'transparent', color: tab === t.id ? 'var(--c-text)' : 'var(--c-text-3)', boxShadow: tab === t.id ? '0 1px 3px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.15s' }}>
-            {t.icon}
-            {t.label}
-          </button>
-        ))}
+      {/* Divider */}
+      <div style={{ margin: '48px 0 32px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ flex: 1, height: '1px', background: 'var(--c-border)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Users size={14} color="var(--c-text-3)" />
+          <span style={{ fontSize: '20px', fontWeight: '600', color: 'var(--c-text)' }}>Lead Outreach</span>
+        </div>
+        <div style={{ flex: 1, height: '1px', background: 'var(--c-border)' }} />
       </div>
-
-      {tab === 'drafter'  && <EmailDrafter />}
-      {tab === 'outreach' && <LeadOutreach />}
+      <p style={{ fontSize: '13px', color: 'var(--c-text-3)', marginBottom: '24px', marginTop: '-20px' }}>
+        Generate personalised legal outreach and track your prospects.
+      </p>
+      <LeadOutreach />
     </div>
   );
 }

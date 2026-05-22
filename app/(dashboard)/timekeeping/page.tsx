@@ -65,13 +65,35 @@ export default function TimekeepingPage() {
   const { connectors, ready: connectorsReady } = useConnectors();
   const [loggedEmails, setLoggedEmails] = useState<Set<string>>(new Set());
 
-  // Timer state
+  // Timer state — persisted in localStorage so navigation doesn't reset it
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerSecs, setTimerSecs] = useState(0);
   const [timerDesc, setTimerDesc] = useState('');
   const [timerMatter, setTimerMatter] = useState('');
   const [timerRate, setTimerRate] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+
+  // Restore timer from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('stu-timer');
+      if (stored) {
+        const t = JSON.parse(stored);
+        setTimerDesc(t.desc || '');
+        setTimerMatter(t.matter || '');
+        setTimerRate(t.rate || 0);
+        if (t.running && t.startedAt) {
+          const elapsed = Math.floor((Date.now() - t.startedAt) / 1000);
+          setTimerSecs(elapsed);
+          startTimeRef.current = t.startedAt;
+          setTimerRunning(true);
+        } else {
+          setTimerSecs(t.secs || 0);
+        }
+      }
+    } catch {}
+  }, []);
 
   // Manual entry
   const [desc, setDesc] = useState('');
@@ -98,18 +120,32 @@ export default function TimekeepingPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Timer tick
+  // Timer tick — uses wall-clock diff so accuracy survives navigation
   useEffect(() => {
     if (timerRunning) {
-      intervalRef.current = setInterval(() => setTimerSecs(s => s + 1), 1000);
+      if (!startTimeRef.current) startTimeRef.current = Date.now() - timerSecs * 1000;
+      intervalRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTimeRef.current!) / 1000);
+        setTimerSecs(elapsed);
+        // Persist so navigation doesn't reset
+        try {
+          localStorage.setItem('stu-timer', JSON.stringify({
+            running: true, startedAt: startTimeRef.current,
+            desc: timerDesc, matter: timerMatter, rate: timerRate,
+          }));
+        } catch {}
+      }, 1000);
     } else {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      startTimeRef.current = null;
     }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timerRunning]);
 
   async function stopAndLog() {
     setTimerRunning(false);
+    try { localStorage.removeItem('stu-timer'); } catch {}
     const totalMins = Math.max(1, Math.round(timerSecs / 60));
     if (!timerDesc.trim()) { setTimerSecs(0); return; }
     await saveEntry({ matterId: timerMatter, description: timerDesc, minutes: totalMins, hourlyRate: timerRate, date: new Date().toISOString().split('T')[0] });
