@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+
+
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -16,8 +16,8 @@ const SCOPES = [
 ].join(' ');
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  
+  
 
   const clientId = process.env.MICROSOFT_CLIENT_ID;
   if (!clientId) {

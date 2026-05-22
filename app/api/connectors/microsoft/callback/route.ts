@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@clerk/nextjs/server';
 import { sqlite } from '@/lib/db';
 import { v4 as uuid } from 'uuid';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
+  
   const baseUrl = process.env.NEXTAUTH_URL || `https://${req.headers.get('host')}`;
   const redirectTo = `${baseUrl}/connectors`;
 
@@ -56,7 +55,8 @@ export async function GET(req: NextRequest) {
     const userInfo = await userRes.json();
     const account = userInfo.mail || userInfo.userPrincipalName;
 
-    const userId = (session?.user as any)?.id ?? null;
+    const { userId } = await auth();
+    if (!userId) return NextResponse.redirect(`${redirectTo}?error=unauthorized`);
 
     const existing = sqlite.prepare(
       'SELECT id FROM connector_tokens WHERE provider=? AND (user_id=? OR account=?)'

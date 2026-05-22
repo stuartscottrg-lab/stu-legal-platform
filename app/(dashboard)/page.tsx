@@ -262,19 +262,21 @@ export default function AssistantPage() {
   const [attachedDocs, setAttachedDocs] = useState<Doc[]>([]);
   const [showFiles, setShowFiles] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
-  const [persona, setPersona] = useState<Persona>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('stu_persona');
-      if (saved) return getPersona(saved);
-    }
-    return getPersona(DEFAULT_PERSONA_ID);
-  });
+  const [persona, setPersona] = useState<Persona>(getPersona(DEFAULT_PERSONA_ID));
+  const [mounted, setMounted] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Hydration-safe: read localStorage only after mount
+  useEffect(() => {
+    setMounted(true);
+    const saved = localStorage.getItem('stu_persona');
+    if (saved) setPersona(getPersona(saved));
+  }, []);
+
   const handlePersonaChange = (p: Persona) => {
     setPersona(p);
-    if (typeof window !== 'undefined') localStorage.setItem('stu_persona', p.id);
+    localStorage.setItem('stu_persona', p.id);
   };
 
   useEffect(() => {

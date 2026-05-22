@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@clerk/nextjs/server';
 import { sqlite } from '@/lib/db';
 import { v4 as uuid } from 'uuid';
 import nodemailer from 'nodemailer';
@@ -8,13 +7,16 @@ import nodemailer from 'nodemailer';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  
+  
 
   const { appleId, appPassword } = await req.json();
   if (!appleId || !appPassword) {
     return NextResponse.json({ error: 'Apple ID and app password required' }, { status: 400 });
   }
+
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   // Verify credentials by attempting SMTP connection to iCloud
   try {
@@ -30,7 +32,6 @@ export async function POST(req: NextRequest) {
     await transporter.verify();
 
     // Credentials valid — store in DB
-    const userId = (session?.user as any)?.id ?? null;
 
     const existing = sqlite.prepare(
       'SELECT id FROM connector_tokens WHERE provider=? AND (user_id=? OR account=?)'
@@ -63,11 +64,10 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { provider } = await req.json();
-  const userId = (session?.user as any)?.id ?? null;
 
   sqlite.prepare('DELETE FROM connector_tokens WHERE provider=? AND user_id=?').run(provider, userId);
   return NextResponse.json({ ok: true });

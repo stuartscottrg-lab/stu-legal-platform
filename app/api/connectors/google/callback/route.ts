@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@clerk/nextjs/server';
 import { sqlite } from '@/lib/db';
 import { v4 as uuid } from 'uuid';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
+  
   const baseUrl = process.env.NEXTAUTH_URL || `https://${req.headers.get('host')}`;
   const redirectTo = `${baseUrl}/connectors`;
 
@@ -57,8 +56,9 @@ export async function GET(req: NextRequest) {
     });
     const userInfo = await userRes.json();
 
-    // Resolve user_id from session (or use email as fallback key)
-    const userId = (session?.user as any)?.id ?? null;
+    // Resolve user_id from Clerk session
+    const { userId } = await auth();
+    if (!userId) return NextResponse.redirect(`${redirectTo}?error=unauthorized`);
 
     // Upsert connector token in DB
     const existing = sqlite.prepare(

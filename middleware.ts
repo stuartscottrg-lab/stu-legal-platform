@@ -1,23 +1,22 @@
-import { withAuth } from 'next-auth/middleware';
-import { NextResponse } from 'next/server';
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
-export default withAuth(
-  function middleware(req) {
-    return NextResponse.next();
-  },
-  {
-    callbacks: {
-      authorized: ({ token }) => !!token,
-    },
-    pages: {
-      signIn: '/login',
-    },
+const isPublicRoute = createRouteMatcher([
+  '/login(.*)',
+  '/sign-in(.*)',
+  '/sign-up(.*)',
+  '/api/auth(.*)',
+  '/api/connectors/google/callback(.*)',
+  '/api/connectors/microsoft/callback(.*)',
+]);
+
+export default clerkMiddleware(async (auth, req) => {
+  if (!isPublicRoute(req)) {
+    await auth.protect();
   }
-);
+});
 
-// Protect everything except login, auth callbacks, and Next.js internals
 export const config = {
   matcher: [
-    '/((?!login|api/auth|api/connectors/google/callback|api/connectors/microsoft/callback|_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };

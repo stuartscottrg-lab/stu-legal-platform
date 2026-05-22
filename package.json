@@ -11,6 +11,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.78",
     "@anthropic-ai/sdk": "^0.98.0",
+    "@clerk/nextjs": "^7.4.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.13",
     "@types/multer": "^2.1.0",
