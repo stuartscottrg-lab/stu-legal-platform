@@ -1,6 +1,6 @@
 import { sqlite } from '@/lib/db';
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { Plus, Archive } from 'lucide-react';
 
 const typeColor: Record<string, string> = {
   litigation: '#ef4444', transactional: '#3b82f6', advisory: '#8b5cf6',
@@ -10,16 +10,21 @@ const typeColor: Record<string, string> = {
 export default function MattersPage() {
   const matters = sqlite.prepare(`
     SELECT m.*, (SELECT COUNT(*) FROM documents d WHERE d.matter_id = m.id) as doc_count
-    FROM matters m ORDER BY m.updated_at DESC
+    FROM matters m WHERE m.archived_at IS NULL ORDER BY m.updated_at DESC
   `).all() as any[];
 
   return (
     <div style={{ padding: '40px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <h1 style={{ fontSize: '20px', fontWeight: '600', color: 'var(--c-text)' }}>Matters</h1>
-        <Link href="/matters/new" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'var(--c-accent-bg)', color: 'var(--c-accent-text)', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
-          <Plus size={13} /> New Matter
-        </Link>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Link href="/matters/archived" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'var(--c-card)', color: 'var(--c-text-2)', border: '1px solid var(--c-border)', borderRadius: '8px', padding: '8px 14px', fontSize: '13px', fontWeight: '500', textDecoration: 'none' }}>
+            <Archive size={13} /> Archives
+          </Link>
+          <Link href="/matters/new" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'var(--c-accent-bg)', color: 'var(--c-accent-text)', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
+            <Plus size={13} /> New Matter
+          </Link>
+        </div>
       </div>
       {matters.length === 0
         ? <div style={{ border: '1px dashed var(--c-border)', borderRadius: '12px', padding: '60px', textAlign: 'center', color: 'var(--c-text-3)', fontSize: '13px' }}>No matters yet</div>

@@ -16,6 +16,10 @@ export function runMigrations() {
       created_by TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
+  `);
+  // Safe add-column migrations (ignored if column already exists)
+  try { sqlite.exec(`ALTER TABLE matters ADD COLUMN archived_at TEXT`); } catch {}
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS documents (
       id TEXT PRIMARY KEY, matter_id TEXT, filename TEXT NOT NULL,
       original_name TEXT NOT NULL, mime_type TEXT NOT NULL, size_bytes INTEGER NOT NULL,

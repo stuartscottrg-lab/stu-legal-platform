@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Archive } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function DeleteMatterButton({ matterId }: { matterId: string }) {
@@ -8,7 +8,7 @@ export default function DeleteMatterButton({ matterId }: { matterId: string }) {
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  async function handleDelete() {
+  async function handleArchive() {
     setLoading(true);
     try {
       await fetch(`/api/matters/${matterId}`, { method: 'DELETE' });
@@ -23,13 +23,13 @@ export default function DeleteMatterButton({ matterId }: { matterId: string }) {
   if (confirming) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontSize: '12px', color: 'var(--c-text-2)' }}>Delete matter and all documents?</span>
+        <span style={{ fontSize: '12px', color: 'var(--c-text-2)' }}>Move to archives? Nothing will be deleted.</span>
         <button
-          onClick={handleDelete}
+          onClick={handleArchive}
           disabled={loading}
-          style={{ padding: '6px 12px', borderRadius: '7px', background: '#ef4444', color: '#fff', border: 'none', fontSize: '12px', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+          style={{ padding: '6px 12px', borderRadius: '7px', background: 'var(--c-accent-bg)', color: 'var(--c-accent-text)', border: 'none', fontSize: '12px', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
         >
-          {loading ? 'Deleting…' : 'Yes, delete'}
+          {loading ? 'Archiving…' : 'Yes, archive'}
         </button>
         <button
           onClick={() => setConfirming(false)}
@@ -44,10 +44,10 @@ export default function DeleteMatterButton({ matterId }: { matterId: string }) {
   return (
     <button
       onClick={() => setConfirming(true)}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '7px', background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '7px', background: 'rgba(100,116,139,0.08)', color: 'var(--c-text-3)', border: '1px solid var(--c-border)', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}
     >
-      <Trash2 size={13} />
-      Delete matter
+      <Archive size={13} />
+      Archive
     </button>
   );
 }

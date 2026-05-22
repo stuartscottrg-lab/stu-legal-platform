@@ -3,7 +3,7 @@ import { sqlite } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function GET() {
-  return NextResponse.json(sqlite.prepare('SELECT * FROM matters ORDER BY updated_at DESC').all());
+  return NextResponse.json(sqlite.prepare('SELECT * FROM matters WHERE archived_at IS NULL ORDER BY updated_at DESC').all());
 }
 
 export async function POST(req: NextRequest) {
