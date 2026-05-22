@@ -51,9 +51,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Final fallback — open email client
-    const params = new URLSearchParams({ subject: subject || '', body });
-    const mailto = `mailto:${encodeURIComponent(to)}?${params.toString()}`;
+    // Final fallback — open email client (encode spaces as %20, not +)
+    const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject || '')}&body=${encodeURIComponent(body)}`;
     return NextResponse.json({ mailto, method: 'mailto' });
 
   } catch (e: any) {
