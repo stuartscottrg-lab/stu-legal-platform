@@ -68,6 +68,15 @@ export function runMigrations() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS tabular_reviews (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      columns TEXT NOT NULL DEFAULT '[]',
+      document_ids TEXT NOT NULL DEFAULT '[]',
+      results TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 }
 

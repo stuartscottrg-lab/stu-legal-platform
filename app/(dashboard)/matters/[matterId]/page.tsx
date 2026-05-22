@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { FileText } from 'lucide-react';
 import UploadZone from '@/components/document/UploadZone';
+import DeleteMatterButton from '@/components/matter/DeleteMatterButton';
 
 export default async function MatterPage({ params }: { params: Promise<{ matterId: string }> }) {
   const { matterId } = await params;
@@ -16,7 +17,10 @@ export default async function MatterPage({ params }: { params: Promise<{ matterI
         <div style={{ fontSize: '12px', color: 'var(--c-text-3)', marginBottom: '10px' }}>
           <Link href="/matters" style={{ color: 'var(--c-text-3)', textDecoration: 'none' }}>Matters</Link> / {matter.title}
         </div>
-        <h1 style={{ fontSize: '20px', fontWeight: '600', color: 'var(--c-text)', marginBottom: '4px' }}>{matter.title}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+          <h1 style={{ fontSize: '20px', fontWeight: '600', color: 'var(--c-text)', marginBottom: '4px' }}>{matter.title}</h1>
+          <DeleteMatterButton matterId={matterId} />
+        </div>
         <p style={{ color: 'var(--c-text-2)', fontSize: '13px' }}>{matter.client_name} · {matter.type}</p>
       </div>
 

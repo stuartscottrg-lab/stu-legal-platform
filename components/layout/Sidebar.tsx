@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import {
   Sparkles, FolderOpen, Workflow, History, Library,
-  Mail, Clock, Search, Settings, Sun, Moon, ChevronDown, ChevronRight, Plus, Plug,
+  Mail, Clock, Search, Settings, Sun, Moon, ChevronDown, ChevronRight, Plus, Plug, Table2,
 } from 'lucide-react';
 import { useConnectors } from '@/lib/hooks/useConnectors';
 import { useTheme } from '@/components/ThemeProvider';
@@ -135,6 +135,7 @@ export default function Sidebar() {
         </div>
 
         {navItem('/playbooks', <Workflow size={14} />, 'Workflows')}
+        {navItem('/tabular-reviews', <Table2 size={14} />, 'Tabular Reviews')}
         {navItem('/research', <Search size={14} />, 'Research')}
         {navItem('/documents', <Library size={14} />, 'Library')}
 

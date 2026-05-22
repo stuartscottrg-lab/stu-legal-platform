@@ -281,17 +281,18 @@ function ChatPanel({ doc, initialMessages }: { doc: any; initialMessages: any[] 
 /* ── Main 3-column layout ── */
 export default function DocumentReviewClient({ doc, matter, annotations, initialMessages, playbooks }: Props) {
   const [panel, setPanel] = useState<'workflows'|'chat'>('workflows');
-  const [docStatus, setDocStatus] = useState(doc.status);
+  const [docStatus, setDocStatus] = useState<string>(doc.status);
   const [liveAnnotations, setLiveAnnotations] = useState(annotations);
   const [liveText, setLiveText] = useState<string>(doc.extracted_text || '');
 
+  // Poll only while genuinely processing; resolve regardless of whether text came back
   useEffect(() => {
     if (docStatus !== 'processing') return;
     let cancelled = false;
     const poll = async () => {
       try {
         const full = await fetch(`/api/documents/${doc.id}`).then(r => r.json());
-        if (full.status === 'ready' || full.extracted_text) {
+        if (full.status === 'ready' || full.status !== 'processing') {
           if (!cancelled) {
             setDocStatus('ready');
             setLiveText(full.extracted_text || '');
@@ -305,6 +306,13 @@ export default function DocumentReviewClient({ doc, matter, annotations, initial
     poll();
     return () => { cancelled = true; };
   }, [docStatus, doc.id]);
+
+  // If doc came back as ready but with no text, mark it done immediately (don't spin forever)
+  useEffect(() => {
+    if (doc.status === 'ready' && !doc.extracted_text && docStatus === 'processing') {
+      setDocStatus('ready');
+    }
+  }, [doc.status, doc.extracted_text, docStatus]);
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
     flex: 1, padding: '11px', fontSize: '12px', fontWeight: '500', background: 'none', border: 'none', cursor: 'pointer',
@@ -330,12 +338,17 @@ export default function DocumentReviewClient({ doc, matter, annotations, initial
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Document viewer */}
         <div style={{ flex: 1, overflowY: 'auto', background: 'var(--c-card)' }}>
-          {!liveText
+          {docStatus === 'processing'
             ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '14px' }}>
                 <Loader2 size={22} color="#555" className="animate-spin" />
                 <p style={{ color: 'var(--c-text-2)', fontSize: '13px' }}>Extracting text and analysing document…</p>
               </div>
-            : <AnnotatedText text={liveText} annotations={liveAnnotations} docId={doc.id} onReady={(d) => { setLiveText(d.extracted_text || ''); setLiveAnnotations(d.annotations || []); setDocStatus('ready'); }} />
+            : liveText
+              ? <AnnotatedText text={liveText} annotations={liveAnnotations} docId={doc.id} onReady={(d) => { setLiveText(d.extracted_text || ''); setLiveAnnotations(d.annotations || []); setDocStatus('ready'); }} />
+              : <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '12px', color: 'var(--c-text-3)' }}>
+                  <p style={{ fontSize: '14px', fontWeight: '500', color: 'var(--c-text-2)' }}>Text could not be extracted</p>
+                  <p style={{ fontSize: '13px', maxWidth: '340px', textAlign: 'center', lineHeight: '1.6' }}>This PDF may be scanned or image-based. Try uploading a text-based PDF or a .docx version.</p>
+                </div>
           }
         </div>
 
