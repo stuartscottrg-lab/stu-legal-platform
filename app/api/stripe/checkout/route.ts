@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     success_url: `${baseUrl}/?checkout=success`,
     cancel_url: `${baseUrl}/pricing?checkout=cancelled`,
     metadata: { userId, planId },
-    subscription_data: { metadata: { userId, planId } },
+    subscription_data: { metadata: { userId, planId }, trial_period_days: 7 },
     allow_promotion_codes: true,
     billing_address_collection: 'auto',
   });
