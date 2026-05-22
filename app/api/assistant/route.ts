@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 
-const API_KEY = process.env.ANTHROPIC_API_KEY || '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';
-const anthropic = new Anthropic({ apiKey: API_KEY });
+function getAnthropic() {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error('ANTHROPIC_API_KEY is not set. Add it to .env.local');
+  return new Anthropic({ apiKey: key });
+}
 
 const SYSTEM = `You are Stu, an expert AI legal assistant with deep knowledge of contract law, corporate law, employment law, and legal drafting across common law jurisdictions — primarily England & Wales.
 
@@ -26,29 +29,55 @@ export async function POST(req: NextRequest) {
     const enc = new TextEncoder();
     const stream = new ReadableStream({
       async start(ctrl) {
+        const send = (obj: object) =>
+          ctrl.enqueue(enc.encode(`data: ${JSON.stringify(obj)}\n\n`));
+
         try {
-          const s = await anthropic.messages.stream({
+          const s = getAnthropic().messages.stream({
             model: 'claude-sonnet-4-5',
-            max_tokens: 2048,
+            max_tokens: 16000,
+            thinking: { type: 'enabled', budget_tokens: 8000 },
             system: SYSTEM,
             messages: messages.map((m: any) => ({ role: m.role, content: m.content })),
           });
 
           for await (const chunk of s) {
-            if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
-              ctrl.enqueue(enc.encode(`data: ${JSON.stringify({ text: chunk.delta.text })}\n\n`));
+            if (chunk.type === 'content_block_start') {
+              const cb = (chunk as any).content_block;
+              if (cb?.type === 'thinking') send({ type: 'thinking_start' });
+            }
+            if (chunk.type === 'content_block_delta') {
+              const d = (chunk as any).delta;
+              if (d?.type === 'thinking_delta') {
+                send({ type: 'thinking', text: d.thinking ?? '' });
+              } else if (d?.type === 'text_delta') {
+                send({ type: 'text', text: d.text ?? '' });
+              }
             }
           }
         } catch (e: any) {
-          ctrl.enqueue(enc.encode(`data: ${JSON.stringify({ error: e?.message || 'AI error' })}\n\n`));
+          const msg = e?.message || 'AI error';
+          const isAuthErr = msg.includes('authentication') || msg.includes('api_key') || msg.includes('401');
+          send({
+            type: 'error',
+            text: isAuthErr
+              ? 'API key error — please check your ANTHROPIC_API_KEY in .env.local and restart the server.'
+              : `Error: ${msg}`,
+          });
         }
+
+        send({ type: 'done' });
         ctrl.enqueue(enc.encode('data: [DONE]\n\n'));
         ctrl.close();
       },
     });
 
     return new NextResponse(stream, {
-      headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no' },
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'X-Accel-Buffering': 'no',
+      },
     });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed' }, { status: 500 });

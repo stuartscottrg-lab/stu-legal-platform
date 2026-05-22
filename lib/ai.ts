@@ -1,7 +1,12 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-const API_KEY = process.env.ANTHROPIC_API_KEY || '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';
-const anthropic = new Anthropic({ apiKey: API_KEY });
+// Lazy client — read key at call time so .env.local is always picked up,
+// even if this module is evaluated before Next.js finishes loading env vars.
+function getAnthropic() {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error('ANTHROPIC_API_KEY is not set. Please add it to your .env.local file.');
+  return new Anthropic({ apiKey: key });
+}
 
 const LEGAL_SYSTEM_PROMPT = `You are an expert legal AI assistant with deep knowledge of contract law, corporate law, and legal drafting conventions across common law and civil law jurisdictions. You assist qualified lawyers and legal professionals. Your analysis is precise, thorough, and grounded in legal reasoning. When identifying risks, cite the specific clause language. When suggesting improvements, provide concrete alternative drafting.`;
 
@@ -26,7 +31,7 @@ export interface AnnotationResult {
 }
 
 async function callClaude(system: string, userContent: string, maxTokens = 2048): Promise<string> {
-  const response = await anthropic.messages.create({
+  const response = await getAnthropic().messages.create({
     model: 'claude-sonnet-4-5',
     max_tokens: maxTokens,
     system,
@@ -97,7 +102,7 @@ export async function legalResearch(question: string): Promise<string> {
 }
 
 export async function* chatWithDocument(docText: string, messages: { role: string; content: string }[]): AsyncGenerator<string> {
-  const stream = await anthropic.messages.stream({
+  const stream = await getAnthropic().messages.stream({
     model: 'claude-sonnet-4-5',
     max_tokens: 2048,
     system: LEGAL_SYSTEM_PROMPT + `\n\nDocument under review:\n\n${docText.slice(0, 50000)}`,

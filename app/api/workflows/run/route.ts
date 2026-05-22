@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sqlite } from '@/lib/db';
 import Anthropic from '@anthropic-ai/sdk';
 
-const API_KEY = process.env.ANTHROPIC_API_KEY || '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';
-const anthropic = new Anthropic({ apiKey: API_KEY });
+function getAnthropic() { return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! }); }
 
 const SYSTEM = `You are an expert legal AI assistant with deep knowledge of contract law, corporate law, and legal drafting conventions across common law and civil law jurisdictions. You assist qualified lawyers and legal professionals. Your analysis is precise, thorough, and grounded in legal reasoning.`;
 
@@ -32,7 +31,7 @@ export async function POST(req: NextRequest) {
     const stream = new ReadableStream({
       async start(ctrl) {
         try {
-          const llmStream = anthropic.messages.stream({
+          const llmStream = getAnthropic().messages.stream({
             model: 'claude-sonnet-4-5',
             max_tokens: 4096,
             system: SYSTEM,

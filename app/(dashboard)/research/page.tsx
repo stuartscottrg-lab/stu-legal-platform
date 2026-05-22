@@ -20,7 +20,14 @@ export default function ResearchPage() {
       const text = await res.text();
       let data: any = {};
       try { data = JSON.parse(text); } catch { setError('Server returned an unexpected response. Please try again.'); setLoading(false); return; }
-      if (!res.ok || data.error) { setError(data.error || 'Something went wrong. Please try again.'); setLoading(false); return; }
+      if (!res.ok || data.error) {
+        const raw = data.error || 'Something went wrong. Please try again.';
+        const isAuth = raw.includes('authentication') || raw.includes('api_key') || raw.includes('401');
+        setError(isAuth
+          ? 'API key error — please check your ANTHROPIC_API_KEY in .env.local and restart the dev server.'
+          : raw.startsWith('{') ? 'AI request failed. Please try again.' : raw);
+        setLoading(false); return;
+      }
       setResult(data.answer || '');
     } catch (e: any) {
       setError(e?.message || 'Network error. Please try again.');

@@ -3,8 +3,7 @@ import { sqlite } from '@/lib/db';
 import Anthropic from '@anthropic-ai/sdk';
 import { v4 as uuidv4 } from 'uuid';
 
-const API_KEY = process.env.ANTHROPIC_API_KEY || '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';
-const anthropic = new Anthropic({ apiKey: API_KEY });
+function getAnthropic() { return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! }); }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ reviewId: string }> }) {
   const { reviewId } = await params;
@@ -38,7 +37,7 @@ Instructions:
 Document content:
 ${doc.extracted_text.slice(0, 40000)}`;
 
-        const llmStream = anthropic.messages.stream({
+        const llmStream = getAnthropic().messages.stream({
           model: 'claude-sonnet-4-5',
           max_tokens: 512,
           messages: [{ role: 'user', content: prompt }],
