@@ -52,11 +52,19 @@ export async function POST(req: NextRequest) {
 
     const docId = uuidv4();
     const ext = file.name.split('.').pop()?.toLowerCase() || 'txt';
-    const dir = path.join(UPLOAD_DIR, matterId || '_library');
-    fs.mkdirSync(dir, { recursive: true });
-    const storagePath = path.join(dir, `${docId}.${ext}`);
     const buf = Buffer.from(await file.arrayBuffer());
-    fs.writeFileSync(storagePath, buf);
+
+    // Try to write to disk (optional — used for local dev; not required on Railway)
+    let storagePath = `_memory/${docId}.${ext}`;
+    try {
+      const dir = path.join(UPLOAD_DIR, matterId || '_library');
+      fs.mkdirSync(dir, { recursive: true });
+      const diskPath = path.join(dir, `${docId}.${ext}`);
+      fs.writeFileSync(diskPath, buf);
+      storagePath = diskPath;
+    } catch {
+      // Filesystem not writable (e.g. Railway) — text extracted from memory buffer below
+    }
 
     await sql`INSERT INTO documents (id,matter_id,filename,original_name,mime_type,size_bytes,storage_path,status,uploaded_by) VALUES (${docId}, ${matterId}, ${`${docId}.${ext}`}, ${file.name}, ${file.type}, ${buf.length}, ${storagePath}, ${'processing'}, ${'user'})`;
 
