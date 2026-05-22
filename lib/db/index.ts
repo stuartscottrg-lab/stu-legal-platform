@@ -1,9 +1,11 @@
+// Supabase / Postgres — primary database
+export { default as sql } from './pg';
+
+// SQLite kept as legacy fallback (local dev without DATABASE_URL)
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 
-// Lazy singleton — database is NOT opened at import time.
-// This prevents SQLITE_BUSY during Next.js build (module analysis phase).
 let _db: Database.Database | null = null;
 
 function getDB(): Database.Database {
@@ -16,18 +18,8 @@ function getDB(): Database.Database {
   return _db;
 }
 
-// Proxy so all existing callers (sqlite.prepare etc.) work unchanged
 export const sqlite = new Proxy({} as Database.Database, {
   get(_, prop: string | symbol) {
     return (getDB() as any)[prop];
-  },
-});
-
-// drizzle only needed at runtime too
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import * as schema from './schema';
-export const db = new Proxy({} as ReturnType<typeof drizzle>, {
-  get(_, prop: string | symbol) {
-    return (drizzle(getDB(), { schema }) as any)[prop];
   },
 });

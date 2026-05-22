@@ -1,4 +1,4 @@
-import { sqlite } from '@/lib/db';
+import sql from '@/lib/db/pg';
 import Link from 'next/link';
 import { Plus, Archive } from 'lucide-react';
 
@@ -7,11 +7,11 @@ const typeColor: Record<string, string> = {
   due_diligence: '#f59e0b', fund_formation: '#10b981', employment: '#f97316',
 };
 
-export default function MattersPage() {
-  const matters = sqlite.prepare(`
+export default async function MattersPage() {
+  const matters = await sql`
     SELECT m.*, (SELECT COUNT(*) FROM documents d WHERE d.matter_id = m.id) as doc_count
     FROM matters m WHERE m.archived_at IS NULL ORDER BY m.updated_at DESC
-  `).all() as any[];
+  `;
 
   return (
     <div style={{ padding: '40px' }}>

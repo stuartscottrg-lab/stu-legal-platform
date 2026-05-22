@@ -1,8 +1,8 @@
-import { sqlite } from '@/lib/db';
+import sql from '@/lib/db/pg';
 import { LayoutTemplate } from 'lucide-react';
 
-export default function TemplatesPage() {
-  const templates = sqlite.prepare('SELECT * FROM templates ORDER BY name ASC').all() as any[];
+export default async function TemplatesPage() {
+  const templates = await sql`SELECT * FROM templates ORDER BY name ASC`;
   return (
     <div style={{ padding: '40px' }}>
       <h1 style={{ fontSize: '20px', fontWeight: '600', color: 'var(--c-text)', marginBottom: '32px' }}>Templates</h1>

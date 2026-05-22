@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sqlite } from '@/lib/db';
+import sql from '@/lib/db/pg';
 import bcrypt from 'bcryptjs';
 import { v4 as uuid } from 'uuid';
 
@@ -16,15 +16,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
     }
 
-    const existing = sqlite.prepare('SELECT id FROM users WHERE email = ?').get(email.toLowerCase());
+    const [existing] = await sql`SELECT id FROM users WHERE email = ${email.toLowerCase()}`;
     if (existing) {
       return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 });
     }
 
     const hash = await bcrypt.hash(password, 12);
-    sqlite.prepare(
-      'INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)'
-    ).run(uuid(), email.toLowerCase().trim(), hash, name.trim(), 'member');
+    await sql`INSERT INTO users (id, email, password_hash, name, role) VALUES (${uuid()}, ${email.toLowerCase().trim()}, ${hash}, ${name.trim()}, ${'member'})`;
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {

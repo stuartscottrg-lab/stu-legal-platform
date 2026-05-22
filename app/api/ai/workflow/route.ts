@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sqlite } from '@/lib/db';
+import sql from '@/lib/db/pg';
 import { summarizeDocument, generateRedactions, translateDocument, runPlaybookItem } from '@/lib/ai';
 
 export async function POST(req: NextRequest) {
   try {
     const { action, documentId, params } = await req.json();
-    const doc = sqlite.prepare('SELECT * FROM documents WHERE id=?').get(documentId) as any;
+    const [doc] = await sql`SELECT * FROM documents WHERE id=${documentId}` as any[];
     if (!doc) return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     const text = doc.extracted_text || '';
 
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ result });
     }
     if (action === 'playbook') {
-      const pb = sqlite.prepare('SELECT * FROM playbooks WHERE id=?').get(params?.playbookId) as any;
+      const [pb] = await sql`SELECT * FROM playbooks WHERE id=${params?.playbookId}` as any[];
       if (!pb) return NextResponse.json({ error: 'Playbook not found' }, { status: 404 });
       const items = JSON.parse(pb.checklist_items);
       const enc = new TextEncoder();

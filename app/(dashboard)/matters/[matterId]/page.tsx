@@ -1,4 +1,4 @@
-import { sqlite } from '@/lib/db';
+import sql from '@/lib/db/pg';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { FileText } from 'lucide-react';
@@ -7,9 +7,9 @@ import DeleteMatterButton from '@/components/matter/DeleteMatterButton';
 
 export default async function MatterPage({ params }: { params: Promise<{ matterId: string }> }) {
   const { matterId } = await params;
-  const matter = sqlite.prepare('SELECT * FROM matters WHERE id=?').get(matterId) as any;
+  const [matter] = await sql`SELECT * FROM matters WHERE id=${matterId}`;
   if (!matter) notFound();
-  const docs = sqlite.prepare('SELECT * FROM documents WHERE matter_id=? ORDER BY created_at DESC').all(matterId) as any[];
+  const docs = await sql`SELECT * FROM documents WHERE matter_id=${matterId} ORDER BY created_at DESC`;
 
   return (
     <div style={{ padding: '40px', maxWidth: '900px' }}>
@@ -23,12 +23,10 @@ export default async function MatterPage({ params }: { params: Promise<{ matterI
         </div>
         <p style={{ color: 'var(--c-text-2)', fontSize: '13px' }}>{matter.client_name} · {matter.type}</p>
       </div>
-
       <div style={{ marginBottom: '32px' }}>
         <h2 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--c-text)', marginBottom: '14px' }}>Upload Document</h2>
         <UploadZone matterId={matterId} />
       </div>
-
       {docs.length > 0 && <>
         <h2 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--c-text)', marginBottom: '14px' }}>Documents ({docs.length})</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

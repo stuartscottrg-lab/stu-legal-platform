@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
-import { sqlite } from '@/lib/db';
+import sql from '@/lib/db/pg';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +9,7 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 export async function POST(req: NextRequest) {
   try {
     const { docId, instruction, selectedText } = await req.json();
-    const doc = sqlite.prepare('SELECT * FROM documents WHERE id=?').get(docId) as any;
+    const [doc] = await sql`SELECT * FROM documents WHERE id=${docId}` as any[];
     if (!doc?.extracted_text) return NextResponse.json({ error: 'Document not found or not processed' }, { status: 404 });
 
     const systemPrompt = `You are a precise legal document editor. The user will give you an instruction to edit a legal document.

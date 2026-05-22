@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sqlite } from '@/lib/db';
+import sql from '@/lib/db/pg';
 import Anthropic from '@anthropic-ai/sdk';
 
 import fs from 'fs';
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     let docContext = '';
     const ids: string[] = documentIds || (documentId ? [documentId] : []);
     for (const id of ids) {
-      const doc = sqlite.prepare('SELECT original_name, extracted_text FROM documents WHERE id=?').get(id) as any;
+      const [doc] = await sql`SELECT original_name, extracted_text FROM documents WHERE id=${id}` as any[];
       if (doc?.extracted_text) {
         docContext += `\n\n--- Document: ${doc.original_name} ---\n${doc.extracted_text.slice(0, 40000)}`;
       }

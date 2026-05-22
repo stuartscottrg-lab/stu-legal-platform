@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sqlite } from '@/lib/db';
+import sql from '@/lib/db/pg';
 import { chatWithDocument } from '@/lib/ai';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
   try {
     const { documentId, messages } = await req.json();
-    const doc = sqlite.prepare('SELECT extracted_text FROM documents WHERE id=?').get(documentId) as any;
+    const [doc] = await sql`SELECT extracted_text FROM documents WHERE id=${documentId}` as any[];
     const docText = doc?.extracted_text || '';
 
     const enc = new TextEncoder();
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
             ctrl.enqueue(enc.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`));
           }
           try {
-            sqlite.prepare('INSERT INTO chat_messages (id,document_id,role,content) VALUES (?,?,?,?)').run(uuidv4(), documentId, 'assistant', fullResp);
+            await sql`INSERT INTO chat_messages (id,document_id,role,content) VALUES (${uuidv4()}, ${documentId}, ${'assistant'}, ${fullResp})`;
           } catch {}
           ctrl.enqueue(enc.encode('data: [DONE]\n\n'));
         } catch (e: any) {

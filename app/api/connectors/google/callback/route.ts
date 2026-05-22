@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { sqlite } from '@/lib/db';
+import sql from '@/lib/db/pg';
 import { v4 as uuid } from 'uuid';
 
 export const dynamic = 'force-dynamic';
@@ -61,37 +61,22 @@ export async function GET(req: NextRequest) {
     if (!userId) return NextResponse.redirect(`${redirectTo}?error=unauthorized`);
 
     // Upsert connector token in DB
-    const existing = sqlite.prepare(
-      'SELECT id FROM connector_tokens WHERE provider=? AND (user_id=? OR (user_id IS NULL AND account=?))'
-    ).get('google', userId, userInfo.email) as any;
+    const [existing] = await sql`
+      SELECT id FROM connector_tokens WHERE provider=${'google'} AND (user_id=${userId} OR (user_id IS NULL AND account=${userInfo.email}))
+    ` as any[];
 
     if (existing) {
-      sqlite.prepare(`
+      await sql`
         UPDATE connector_tokens SET
-          access_token=?, refresh_token=?, expires_at=?, scope=?,
-          account=?, updated_at=CURRENT_TIMESTAMP
-        WHERE id=?
-      `).run(
-        tokens.access_token,
-        tokens.refresh_token ?? null,
-        tokens.expires_in ? Math.floor(Date.now() / 1000) + tokens.expires_in : null,
-        tokens.scope ?? null,
-        userInfo.email,
-        existing.id
-      );
+          access_token=${tokens.access_token}, refresh_token=${tokens.refresh_token ?? null}, expires_at=${tokens.expires_in ? Math.floor(Date.now() / 1000) + tokens.expires_in : null}, scope=${tokens.scope ?? null},
+          account=${userInfo.email}, updated_at=CURRENT_TIMESTAMP
+        WHERE id=${existing.id}
+      `;
     } else {
-      sqlite.prepare(`
+      await sql`
         INSERT INTO connector_tokens (id, user_id, provider, account, access_token, refresh_token, expires_at, scope)
-        VALUES (?, ?, 'google', ?, ?, ?, ?, ?)
-      `).run(
-        uuid(),
-        userId,
-        userInfo.email,
-        tokens.access_token,
-        tokens.refresh_token ?? null,
-        tokens.expires_in ? Math.floor(Date.now() / 1000) + tokens.expires_in : null,
-        tokens.scope ?? null
-      );
+        VALUES (${uuid()}, ${userId}, ${'google'}, ${userInfo.email}, ${tokens.access_token}, ${tokens.refresh_token ?? null}, ${tokens.expires_in ? Math.floor(Date.now() / 1000) + tokens.expires_in : null}, ${tokens.scope ?? null})
+      `;
     }
 
     const response = NextResponse.redirect(`${redirectTo}?connected=google`);

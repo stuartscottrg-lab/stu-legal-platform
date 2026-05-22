@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { sqlite } from '@/lib/db';
+import sql from '@/lib/db/pg';
 import { v4 as uuid } from 'uuid';
 import nodemailer from 'nodemailer';
 
@@ -33,21 +33,17 @@ export async function POST(req: NextRequest) {
 
     // Credentials valid — store in DB
 
-    const existing = sqlite.prepare(
-      'SELECT id FROM connector_tokens WHERE provider=? AND (user_id=? OR account=?)'
-    ).get('icloud', userId, appleId) as any;
+    const [existing] = await sql`
+      SELECT id FROM connector_tokens WHERE provider=${'icloud'} AND (user_id=${userId} OR account=${appleId})
+    ` as any[];
 
     // Store encrypted in production — for now store as-is (local dev only)
     const extra = JSON.stringify({ appPassword });
 
     if (existing) {
-      sqlite.prepare(`
-        UPDATE connector_tokens SET account=?, extra=?, updated_at=CURRENT_TIMESTAMP WHERE id=?
-      `).run(appleId, extra, existing.id);
+      await sql`UPDATE connector_tokens SET account=${appleId}, extra=${extra}, updated_at=CURRENT_TIMESTAMP WHERE id=${existing.id}`;
     } else {
-      sqlite.prepare(`
-        INSERT INTO connector_tokens (id, user_id, provider, account, extra) VALUES (?, ?, 'icloud', ?, ?)
-      `).run(uuid(), userId, appleId, extra);
+      await sql`INSERT INTO connector_tokens (id, user_id, provider, account, extra) VALUES (${uuid()}, ${userId}, ${'icloud'}, ${appleId}, ${extra})`;
     }
 
     return NextResponse.json({ ok: true, account: appleId });
@@ -69,6 +65,6 @@ export async function DELETE(req: NextRequest) {
 
   const { provider } = await req.json();
 
-  sqlite.prepare('DELETE FROM connector_tokens WHERE provider=? AND user_id=?').run(provider, userId);
+  await sql`DELETE FROM connector_tokens WHERE provider=${provider} AND user_id=${userId}`;
   return NextResponse.json({ ok: true });
 }

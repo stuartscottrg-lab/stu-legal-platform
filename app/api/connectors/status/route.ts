@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { sqlite } from '@/lib/db';
+import sql from '@/lib/db/pg';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,12 +8,12 @@ export async function GET(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const tokens = sqlite.prepare(`
+  const tokens = await sql`
     SELECT provider, account, created_at, updated_at
     FROM connector_tokens
-    WHERE user_id=? OR user_id IS NULL
+    WHERE user_id=${userId} OR user_id IS NULL
     ORDER BY updated_at DESC
-  `).all(userId) as any[];
+  ` as any[];
 
   const connected: Record<string, { account: string; connectedAt: string }> = {};
   for (const t of tokens) {
@@ -38,6 +38,6 @@ export async function DELETE(req: NextRequest) {
 
   const { provider } = await req.json();
 
-  sqlite.prepare('DELETE FROM connector_tokens WHERE provider=? AND (user_id=? OR user_id IS NULL)').run(provider, userId);
+  await sql`DELETE FROM connector_tokens WHERE provider=${provider} AND (user_id=${userId} OR user_id IS NULL)`;
   return NextResponse.json({ ok: true });
 }

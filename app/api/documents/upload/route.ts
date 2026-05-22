@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sqlite } from '@/lib/db';
+import sql from '@/lib/db/pg';
 import { generateAnnotations } from '@/lib/ai';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
@@ -58,30 +58,26 @@ export async function POST(req: NextRequest) {
     const buf = Buffer.from(await file.arrayBuffer());
     fs.writeFileSync(storagePath, buf);
 
-    sqlite.prepare('INSERT INTO documents (id,matter_id,filename,original_name,mime_type,size_bytes,storage_path,status,uploaded_by) VALUES (?,?,?,?,?,?,?,?,?)').run(
-      docId, matterId, `${docId}.${ext}`, file.name, file.type, buf.length, storagePath, 'processing', 'user'
-    );
+    await sql`INSERT INTO documents (id,matter_id,filename,original_name,mime_type,size_bytes,storage_path,status,uploaded_by) VALUES (${docId}, ${matterId}, ${`${docId}.${ext}`}, ${file.name}, ${file.type}, ${buf.length}, ${storagePath}, ${'processing'}, ${'user'})`;
 
     // Background processing
     (async () => {
       try {
         const text = await extractText(buf, file.type, file.name);
-        sqlite.prepare('UPDATE documents SET extracted_text=?, status=? WHERE id=?').run(text || null, 'ready', docId);
+        await sql`UPDATE documents SET extracted_text=${text || null}, status=${'ready'} WHERE id=${docId}`;
 
         if (text && text.length > 200) {
           const anns = await generateAnnotations(text);
           for (const a of anns) {
             const idx = text.indexOf(a.text.slice(0, 60));
             if (idx >= 0) {
-              sqlite.prepare('INSERT INTO annotations (id,document_id,annotation_type,severity,comment,suggestion,start_offset,end_offset) VALUES (?,?,?,?,?,?,?,?)').run(
-                uuidv4(), docId, 'risk', a.severity, a.issue, a.suggestion, idx, idx + a.text.length
-              );
+              await sql`INSERT INTO annotations (id,document_id,annotation_type,severity,comment,suggestion,start_offset,end_offset) VALUES (${uuidv4()}, ${docId}, ${'risk'}, ${a.severity}, ${a.issue}, ${a.suggestion}, ${idx}, ${idx + a.text.length})`;
             }
           }
         }
       } catch (e) {
         console.error('Background processing error:', e);
-        sqlite.prepare('UPDATE documents SET status=? WHERE id=?').run('ready', docId);
+        await sql`UPDATE documents SET status=${'ready'} WHERE id=${docId}`;
       }
     })();
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sqlite } from '@/lib/db';
+import sql from '@/lib/db/pg';
 import Anthropic from '@anthropic-ai/sdk';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -12,10 +12,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ rev
   const { reviewId } = await params;
   const { documentId, column } = await req.json();
 
-  const review = sqlite.prepare('SELECT * FROM tabular_reviews WHERE id=?').get(reviewId) as any;
+  const [review] = await sql`SELECT * FROM tabular_reviews WHERE id=${reviewId}` as any[];
   if (!review) return NextResponse.json({ error: 'Review not found' }, { status: 404 });
 
-  const doc = sqlite.prepare('SELECT original_name, extracted_text FROM documents WHERE id=?').get(documentId) as any;
+  const [doc] = await sql`SELECT original_name, extracted_text FROM documents WHERE id=${documentId}` as any[];
   if (!doc) return NextResponse.json({ error: 'Document not found' }, { status: 404 });
   if (!doc.extracted_text) return NextResponse.json({ error: 'No text extracted from this document' }, { status: 400 });
 
@@ -58,9 +58,7 @@ ${doc.extracted_text.slice(0, 40000)}`;
         const existing = JSON.parse(review.results || '{}');
         if (!existing[documentId]) existing[documentId] = {};
         existing[documentId][column.id] = text;
-        sqlite.prepare('UPDATE tabular_reviews SET results=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').run(
-          JSON.stringify(existing), reviewId
-        );
+        await sql`UPDATE tabular_reviews SET results=${JSON.stringify(existing)}, updated_at=CURRENT_TIMESTAMP WHERE id=${reviewId}`;
 
         ctrl.enqueue(enc.encode('data: [DONE]\n\n'));
       } catch (e: any) {
