@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
           send({
             type: 'error',
             text: isAuthErr
-              ? 'API key error — please check your ANTHROPIC_API_KEY in .env.local and restart the server.'
+              ? 'AI service temporarily unavailable. Please try again in a moment.'
               : `Error: ${msg}`,
           });
         }
