@@ -175,6 +175,26 @@ export async function runPgMigrations() {
         updated_at TIMESTAMPTZ DEFAULT NOW()
       )
     `;
+    // Enable pgvector for semantic memory
+    await sql`CREATE EXTENSION IF NOT EXISTS vector`;
+    await sql`
+      CREATE TABLE IF NOT EXISTS user_memories (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        content TEXT NOT NULL,
+        embedding vector(1024),
+        source_type TEXT NOT NULL DEFAULT 'chat',
+        source_id TEXT,
+        matter_id TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `;
+    await sql`
+      CREATE INDEX IF NOT EXISTS user_memories_embedding_idx
+      ON user_memories USING ivfflat (embedding vector_cosine_ops)
+      WITH (lists = 100)
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS user_memories_user_idx ON user_memories (user_id)`;
     console.log('✅ Postgres migrations complete');
   } catch (e) {
     console.error('Postgres migration error:', e);

@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
 import Anthropic from '@anthropic-ai/sdk';
+import { storeMemory, chunkText } from '@/lib/memory/embeddings';
 
 const UPLOAD_DIR = process.env.DATA_DIR
   ? path.join(process.env.DATA_DIR, 'uploads')
@@ -119,6 +120,20 @@ export async function POST(req: NextRequest) {
             const idx = text.indexOf(a.text.slice(0, 60));
             if (idx >= 0) {
               await sql`INSERT INTO annotations (id,document_id,annotation_type,severity,comment,suggestion,start_offset,end_offset) VALUES (${uuidv4()}, ${docId}, ${'risk'}, ${a.severity}, ${a.issue}, ${a.suggestion}, ${idx}, ${idx + a.text.length})`;
+            }
+          }
+
+          // Embed document chunks into user memory
+          if (userId && userId !== 'anon') {
+            const chunks = chunkText(text);
+            for (const chunk of chunks) {
+              await storeMemory({
+                userId,
+                content: `From document "${file.name}": ${chunk}`,
+                sourceType: 'document',
+                sourceId: docId,
+                matterId: matterId ?? undefined,
+              });
             }
           }
         }
