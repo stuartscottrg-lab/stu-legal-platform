@@ -1,8 +1,63 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Paperclip, Sparkles, ArrowUp, RotateCcw, Search, ChevronRight, FileText, X, Brain, Upload } from 'lucide-react';
+import { Paperclip, Sparkles, ArrowUp, RotateCcw, Search, ChevronRight, FileText, X, Brain, Upload, Mail, Inbox } from 'lucide-react';
 import Link from 'next/link';
 import { PERSONAS, getPersona, DEFAULT_PERSONA_ID, type Persona } from '@/lib/personas';
+
+/* ── Email briefing strip ── */
+function EmailBriefingStrip({ onBrief }: { onBrief: (prompt: string) => void }) {
+  const [emailStatus, setEmailStatus] = useState<{ provider: string; account: string } | null>(null);
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/connectors/status')
+      .then(r => r.json())
+      .then(d => {
+        const c = d.connected ?? {};
+        if (c.google) setEmailStatus({ provider: 'Gmail', account: c.google.account });
+        else if (c.outlook) setEmailStatus({ provider: 'Outlook', account: c.outlook.account });
+        else if (c.icloud) setEmailStatus({ provider: 'Apple Mail', account: c.icloud.account });
+        setChecked(true);
+      })
+      .catch(() => setChecked(true));
+  }, []);
+
+  if (!checked) return null;
+
+  if (!emailStatus) {
+    return (
+      <Link href="/connectors" style={{
+        display: 'inline-flex', alignItems: 'center', gap: '7px',
+        padding: '6px 14px', borderRadius: '20px',
+        border: '1px dashed var(--c-border)', background: 'transparent',
+        fontSize: '12px', color: 'var(--c-text-4)', textDecoration: 'none',
+        transition: 'all 0.15s',
+      }}>
+        <Mail size={12} /> Connect email for daily briefing
+      </Link>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <button
+        onClick={() => onBrief(`Give me a morning briefing. My ${emailStatus.provider} account (${emailStatus.account}) is connected. Summarise what I should focus on today as a solicitor: any urgent client matters, deadlines, or follow-ups I should be aware of. Structure it as a quick daily brief I can scan in 60 seconds.`)}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: '7px',
+          padding: '6px 14px', borderRadius: '20px',
+          border: '1px solid var(--c-border)', background: 'var(--c-card)',
+          fontSize: '12px', color: 'var(--c-text-2)',
+          cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+        }}
+        onMouseOver={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--c-border-s)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--c-text)'; }}
+        onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--c-border)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--c-text-2)'; }}
+      >
+        <Inbox size={12} /> Morning briefing
+      </button>
+      <span style={{ fontSize: '11px', color: 'var(--c-text-4)' }}>{emailStatus.provider} · {emailStatus.account}</span>
+    </div>
+  );
+}
 
 interface Msg { role: string; content: string; thinking?: string; thinkingOpen?: boolean; }
 interface Matter { id: string; title: string; client_name: string; }
@@ -655,8 +710,8 @@ export default function AssistantPage() {
         </div>
       </div>
 
-      {/* Source pills */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginBottom: '40px', width: '100%', maxWidth: '720px' }}>
+      {/* Source pills + email briefing */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', marginBottom: '36px', width: '100%', maxWidth: '720px' }}>
         <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', justifyContent: 'center' }}>
           {[
             ...PILLS,
@@ -669,10 +724,8 @@ export default function AssistantPage() {
               {p.label}
             </span>
           ))}
-          <Link href="/connectors" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'transparent', border: '1px dashed var(--c-border)', borderRadius: '20px', padding: '4px 10px 4px 8px', fontSize: '12px', color: 'var(--c-text-4)', textDecoration: 'none' }}>
-            + Connect email
-          </Link>
         </div>
+        <EmailBriefingStrip onBrief={prompt => send(prompt)} />
       </div>
 
       {/* Recommended workflows */}
