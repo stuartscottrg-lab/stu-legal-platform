@@ -160,7 +160,7 @@ function PromptsDropdown({ onSelect, onClose }: { onSelect: (p: string) => void;
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 50 }} />
-      <div style={{
+      <div className="prompts-dropdown" style={{
         position: 'absolute', bottom: '100%', left: 0, marginBottom: '8px',
         background: 'var(--c-card)', border: '1px solid var(--c-border)',
         borderRadius: '12px', padding: '6px', zIndex: 51,
@@ -300,7 +300,7 @@ export default function AssistantPage() {
   // ─── Conversation view ─────────────────────────────────────────────────
   if (messages.length > 0) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--c-bg)' }}>
+      <div className="chat-page" style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'var(--c-bg)' }}>
         {showFiles && <FilesModal onClose={() => setShowFiles(false)} onAttach={docs => setAttachedDocs(docs)} />}
 
         {/* Header */}
@@ -316,7 +316,7 @@ export default function AssistantPage() {
 
         {/* Messages */}
         <div style={{ flex: 1, overflow: 'auto', padding: '40px 0' }}>
-          <div style={{ maxWidth: '720px', margin: '0 auto', padding: '0 32px' }}>
+          <div className="chat-messages-inner" style={{ maxWidth: '720px', margin: '0 auto', padding: '0 32px' }}>
             {messages.map((msg, i) => (
               <div key={i} style={{ marginBottom: '36px' }}>
                 <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--c-text-3)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
@@ -354,7 +354,7 @@ export default function AssistantPage() {
         </div>
 
         {/* Pinned input */}
-        <div style={{ flexShrink: 0, background: 'var(--c-bg)', borderTop: '1px solid var(--c-border)', padding: '12px 24px 16px' }}>
+        <div className="chat-input-bar" style={{ flexShrink: 0, background: 'var(--c-bg)', borderTop: '1px solid var(--c-border)', padding: '12px 24px 16px' }}>
           <div style={{ maxWidth: '720px', margin: '0 auto' }}>
             {attachedDocs.length > 0 && (
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
@@ -398,11 +398,11 @@ export default function AssistantPage() {
 
   // ─── Landing / empty state ──────────────────────────────────────────────
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--c-bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 24px 80px', position: 'relative' }}>
+    <div className="assistant-landing" style={{ minHeight: '100dvh', background: 'var(--c-bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 24px 80px', position: 'relative' }}>
       {showFiles && <FilesModal onClose={() => setShowFiles(false)} onAttach={docs => setAttachedDocs(docs)} />}
 
       {/* Top-right utilities */}
-      <div style={{ position: 'fixed', top: '12px', right: '20px', display: 'flex', gap: '6px', zIndex: 10 }}>
+      <div className="landing-top-right" style={{ position: 'fixed', top: '12px', right: '20px', display: 'flex', gap: '6px', zIndex: 10 }}>
         <Link href="/research" style={{ fontSize: '12px', color: 'var(--c-text-2)', textDecoration: 'none', padding: '5px 12px', borderRadius: '6px', background: 'var(--c-panel)', border: '1px solid var(--c-border)' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><Search size={11} /> Research</span>
         </Link>

@@ -11,7 +11,7 @@ import { useTheme } from '@/components/ThemeProvider';
 
 interface Matter { id: string; title: string; client_name: string; }
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }: { onClose?: () => void } = {}) {
   const path = usePathname();
   const { theme, toggle } = useTheme();
   const [matters, setMatters] = useState<Matter[]>([]);
@@ -34,7 +34,7 @@ export default function Sidebar() {
   const navItem = (href: string, icon: React.ReactNode, label: string, badge?: number) => {
     const active = isActive(href);
     return (
-      <Link href={href} className="nav-link" style={{
+      <Link href={href} className="nav-link" onClick={onClose} style={{
         display: 'flex', alignItems: 'center', gap: '9px',
         padding: '6px 10px', borderRadius: '7px',
         fontSize: '13px', textDecoration: 'none',
@@ -70,7 +70,7 @@ export default function Sidebar() {
             </button>
           </div>
         </div>
-        <Link href="/matters/new" style={{
+        <Link href="/matters/new" onClick={onClose} style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
           width: '100%', padding: '7px', borderRadius: '8px',
           border: '1px solid var(--c-border)', background: 'var(--c-card)',
@@ -109,7 +109,7 @@ export default function Sidebar() {
           {mattersOpen && matters.length > 0 && (
             <div style={{ paddingLeft: '22px', marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
               {matters.map(m => (
-                <Link key={m.id} href={`/matters/${m.id}`} style={{
+                <Link key={m.id} href={`/matters/${m.id}`} onClick={onClose} style={{
                   display: 'block', padding: '5px 10px', borderRadius: '6px',
                   fontSize: '12px', textDecoration: 'none',
                   color: path === `/matters/${m.id}` ? 'var(--c-text)' : 'var(--c-text-3)',
@@ -120,14 +120,14 @@ export default function Sidebar() {
                   {m.title}
                 </Link>
               ))}
-              <Link href="/matters" style={{ display: 'block', padding: '5px 10px', borderRadius: '6px', fontSize: '12px', color: 'var(--c-text-4)', textDecoration: 'none' }}>
+              <Link href="/matters" onClick={onClose} style={{ display: 'block', padding: '5px 10px', borderRadius: '6px', fontSize: '12px', color: 'var(--c-text-4)', textDecoration: 'none' }}>
                 View all →
               </Link>
             </div>
           )}
           {mattersOpen && matters.length === 0 && (
             <div style={{ paddingLeft: '22px', marginTop: '2px' }}>
-              <Link href="/matters/new" style={{ display: 'block', padding: '5px 10px', fontSize: '12px', color: 'var(--c-text-4)', textDecoration: 'none' }}>
+              <Link href="/matters/new" onClick={onClose} style={{ display: 'block', padding: '5px 10px', fontSize: '12px', color: 'var(--c-text-4)', textDecoration: 'none' }}>
                 + Create first matter
               </Link>
             </div>

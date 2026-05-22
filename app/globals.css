@@ -152,6 +152,112 @@ input::placeholder, textarea::placeholder {
 .annotation-medium { background: rgba(217,119,6,0.12); border-bottom: 2px solid var(--risk-medium); cursor: pointer; }
 .annotation-low    { background: rgba(22,163,74,0.12); border-bottom: 2px solid var(--risk-low); cursor: pointer; }
 
+/* ─── Mobile layout ─── */
+
+/* Desktop sidebar: always visible on ≥768px */
+.desktop-sidebar {
+  display: flex;
+  flex-shrink: 0;
+}
+
+/* Mobile drawer: fixed overlay panel */
+.mobile-drawer {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 260px;
+  z-index: 50;
+  overflow-y: auto;
+  box-shadow: 4px 0 24px rgba(0,0,0,0.15);
+}
+
+/* Mobile top header bar */
+.mobile-header {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 52px;
+  border-bottom: 1px solid var(--c-border);
+  background: var(--c-sidebar);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+@media (max-width: 767px) {
+  /* Hide desktop sidebar, show mobile drawer + header */
+  .desktop-sidebar {
+    display: none;
+  }
+  .mobile-drawer {
+    display: flex;
+    flex-direction: column;
+  }
+  .mobile-header {
+    display: flex;
+  }
+
+  /* Make sidebar inside the drawer take full height */
+  .mobile-drawer > aside {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100dvh;
+  }
+
+  /* Increase touch targets for nav items */
+  .nav-link {
+    padding: 10px 14px !important;
+    font-size: 14px !important;
+    min-height: 44px;
+  }
+
+  /* ── Assistant chat page ── */
+
+  /* Conversation view: account for mobile header height */
+  .chat-page {
+    height: calc(100dvh - 52px) !important;
+  }
+
+  /* Reduce side padding for messages */
+  .chat-messages-inner {
+    padding: 0 16px !important;
+  }
+
+  /* Input bar: tighter padding on mobile */
+  .chat-input-bar {
+    padding: 10px 12px env(safe-area-inset-bottom, 12px) !important;
+  }
+
+  /* Landing page: less top padding (mobile header already takes 52px) */
+  .assistant-landing {
+    padding: 24px 16px 80px !important;
+    min-height: calc(100dvh - 52px) !important;
+    justify-content: flex-start !important;
+  }
+
+  /* Hide the fixed top-right Research shortcut — it's in the drawer nav */
+  .landing-top-right {
+    display: none !important;
+  }
+
+  /* Prompts dropdown: fit to screen width */
+  .prompts-dropdown {
+    width: calc(100vw - 48px) !important;
+    left: 0 !important;
+    right: 0 !important;
+  }
+
+  /* Prose content: readable line length on small screens */
+  .prose-content {
+    font-size: 14px;
+  }
+}
+
+/* ─── Animations ─── */
 @keyframes spin { to { transform: rotate(360deg); } }
 .animate-spin { animation: spin 0.8s linear infinite; }
 

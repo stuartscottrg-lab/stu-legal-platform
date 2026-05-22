@@ -1,4 +1,4 @@
-import Sidebar from '@/components/layout/Sidebar';
+import DashboardShell from '@/components/layout/DashboardShell';
 
 // All dashboard routes render on-demand, never at build time
 export const dynamic = 'force-dynamic';
@@ -18,12 +18,5 @@ export default async function DashboardLayout({ children }: { children: React.Re
     }
   }
 
-  return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <Sidebar />
-      <main style={{ flex: 1, overflow: 'auto', background: 'var(--c-bg)' }}>
-        {children}
-      </main>
-    </div>
-  );
+  return <DashboardShell>{children}</DashboardShell>;
 }
