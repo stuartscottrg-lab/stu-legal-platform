@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import fs from 'fs';
+import path from 'path';
+
+function getApiKey(): string {
+  if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY;
+  try {
+    const content = fs.readFileSync(path.join(process.cwd(), '.env.local'), 'utf8');
+    const match = content.match(/^ANTHROPIC_API_KEY=(.+)$/m);
+    if (match?.[1]) return match[1].trim();
+  } catch {}
+  throw new Error('ANTHROPIC_API_KEY not set');
+}
 
 function getAnthropic() {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error('ANTHROPIC_API_KEY is not set. Add it to .env.local');
-  return new Anthropic({ apiKey: key });
+  return new Anthropic({ apiKey: getApiKey() });
 }
 
 const SYSTEM = `You are Stu, an expert AI legal assistant with deep knowledge of contract law, corporate law, employment law, and legal drafting across common law jurisdictions — primarily England & Wales.

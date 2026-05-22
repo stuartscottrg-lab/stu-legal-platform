@@ -1,11 +1,22 @@
 import Anthropic from '@anthropic-ai/sdk';
+import fs from 'fs';
+import path from 'path';
 
-// Lazy client — read key at call time so .env.local is always picked up,
-// even if this module is evaluated before Next.js finishes loading env vars.
+// Read key from process.env first, then fall back to parsing .env.local directly.
+// This ensures the key works even when Next.js hasn't propagated the env var yet.
+function getApiKey(): string {
+  if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY;
+  try {
+    const envPath = path.join(process.cwd(), '.env.local');
+    const content = fs.readFileSync(envPath, 'utf8');
+    const match = content.match(/^ANTHROPIC_API_KEY=(.+)$/m);
+    if (match?.[1]) return match[1].trim();
+  } catch {}
+  throw new Error('ANTHROPIC_API_KEY is not set. Please add it to your .env.local file.');
+}
+
 function getAnthropic() {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error('ANTHROPIC_API_KEY is not set. Please add it to your .env.local file.');
-  return new Anthropic({ apiKey: key });
+  return new Anthropic({ apiKey: getApiKey() });
 }
 
 const LEGAL_SYSTEM_PROMPT = `You are an expert legal AI assistant with deep knowledge of contract law, corporate law, and legal drafting conventions across common law and civil law jurisdictions. You assist qualified lawyers and legal professionals. Your analysis is precise, thorough, and grounded in legal reasoning. When identifying risks, cite the specific clause language. When suggesting improvements, provide concrete alternative drafting.`;

@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sqlite } from '@/lib/db';
 import Anthropic from '@anthropic-ai/sdk';
 
-function getAnthropic() { return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! }); }
+import fs from 'fs';
+import pathMod from 'path';
+function getApiKey(){if(process.env.ANTHROPIC_API_KEY)return process.env.ANTHROPIC_API_KEY;try{const c=fs.readFileSync(pathMod.join(process.cwd(),'.env.local'),'utf8');const m=c.match(/^ANTHROPIC_API_KEY=(.+)$/m);if(m?.[1])return m[1].trim();}catch{}throw new Error('ANTHROPIC_API_KEY not set');}
+function getAnthropic(){return new Anthropic({apiKey:getApiKey()});}
 
 const SYSTEM = `You are an expert legal AI assistant with deep knowledge of contract law, corporate law, and legal drafting conventions across common law and civil law jurisdictions. You assist qualified lawyers and legal professionals. Your analysis is precise, thorough, and grounded in legal reasoning.`;
 
