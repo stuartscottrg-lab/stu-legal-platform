@@ -109,7 +109,7 @@ export default function PricingPage() {
           Simple, transparent pricing
         </h1>
         <p style={{ fontSize: '16px', color: 'var(--c-text-2)', lineHeight: '1.65' }}>
-          7-day free trial. No credit card required. Cancel anytime.
+          7-day free trial — no credit card required. Cancel anytime.
         </p>
 
         {/* Billing toggle */}

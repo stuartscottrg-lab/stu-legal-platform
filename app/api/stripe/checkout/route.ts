@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
     cancel_url: `${baseUrl}/pricing?checkout=cancelled`,
     metadata: { userId, planId },
     subscription_data: { metadata: { userId, planId }, trial_period_days: 7 },
+    payment_method_collection: 'if_required',
     allow_promotion_codes: true,
     billing_address_collection: 'auto',
   });
