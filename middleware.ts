@@ -25,11 +25,13 @@ export default clerkMiddleware(async (auth, req) => {
       if (isApiRoute(req)) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
-      // Always use HTTPS — Railway terminates SSL at the edge so req.url may be http://
-      const reqUrl = new URL(req.url);
-      reqUrl.protocol = 'https:';
-      const signInUrl = new URL('/sign-in', reqUrl.origin);
-      signInUrl.searchParams.set('redirect_url', reqUrl.toString());
+      // Use x-forwarded-host so Railway's internal localhost:8080 doesn't leak
+      const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? 'stu.ink';
+      const proto = req.headers.get('x-forwarded-proto') ?? 'https';
+      const reqPath = new URL(req.url).pathname + new URL(req.url).search;
+      const publicOrigin = `${proto}://${host}`;
+      const signInUrl = new URL('/sign-in', publicOrigin);
+      signInUrl.searchParams.set('redirect_url', `${publicOrigin}${reqPath}`);
       return NextResponse.redirect(signInUrl);
     }
   }
