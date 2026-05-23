@@ -1,4 +1,3 @@
-import { createServerClient } from '@supabase/ssr';
 import { NextRequest, NextResponse } from 'next/server';
 
 const PUBLIC_PATHS = [
@@ -15,73 +14,45 @@ const PUBLIC_PATHS = [
   '/api/connectors/microsoft/callback',
 ];
 
-function isPublic(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+function isPublic(pathname: string) {
   return PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
 }
 
-function isApi(req: NextRequest) {
-  return req.nextUrl.pathname.startsWith('/api/');
+function isApi(pathname: string) {
+  return pathname.startsWith('/api/');
 }
 
-export async function middleware(req: NextRequest) {
-  // Skip auth check for public paths early — avoids unnecessary network calls
-  if (isPublic(req)) {
-    return NextResponse.next({ request: req });
-  }
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  // If env vars are missing, fail open with a clear 500 rather than a cryptic crash
-  if (!supabaseUrl || !supabaseKey) {
-    console.error('Middleware: missing Supabase env vars');
-    return NextResponse.json(
-      { error: 'Server misconfiguration' },
-      { status: 500 },
-    );
-  }
-
-  let res = NextResponse.next({ request: req });
-
-  try {
-    const supabase = createServerClient(supabaseUrl, supabaseKey, {
-      cookies: {
-        getAll() { return req.cookies.getAll(); },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => req.cookies.set(name, value));
-          res = NextResponse.next({ request: req });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            res.cookies.set(name, value, options),
-          );
-        },
-      },
-    });
-
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      if (isApi(req)) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-      const signIn = req.nextUrl.clone();
-      signIn.pathname = '/sign-in';
-      signIn.searchParams.set('redirect', req.nextUrl.pathname);
-      return NextResponse.redirect(signIn);
+function hasSession(req: NextRequest): boolean {
+  // Supabase stores the session in a cookie named sb-<project-ref>-auth-token
+  // We check for any cookie that looks like a Supabase session
+  for (const [name] of req.cookies) {
+    if (name.startsWith('sb-') && name.endsWith('-auth-token')) {
+      return true;
     }
-  } catch (err) {
-    console.error('Middleware auth error:', err);
-    // On auth failure, redirect to sign-in rather than crashing
-    if (isApi(req)) {
+  }
+  return false;
+}
+
+export function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
+  // Always allow public paths
+  if (isPublic(pathname)) {
+    return NextResponse.next();
+  }
+
+  // Check for a Supabase session cookie
+  if (!hasSession(req)) {
+    if (isApi(pathname)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const signIn = req.nextUrl.clone();
     signIn.pathname = '/sign-in';
-    signIn.searchParams.set('redirect', req.nextUrl.pathname);
+    signIn.searchParams.set('redirect', pathname);
     return NextResponse.redirect(signIn);
   }
 
-  return res;
+  return NextResponse.next();
 }
 
 export const config = {
