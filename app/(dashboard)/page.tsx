@@ -689,13 +689,6 @@ export default function AssistantPage() {
                   <div style={{ fontSize: '14px', color: 'var(--c-text)', lineHeight: '1.7' }}>{msg.content}</div>
                 ) : (
                   <div>
-                    {msg.thinking && (
-                      <ThinkingBlock
-                        thinking={msg.thinking}
-                        open={!!msg.thinkingOpen}
-                        onToggle={() => toggleThinking(i)}
-                      />
-                    )}
                     {msg.content ? (
                       formatAI(msg.content)
                     ) : streaming && i === messages.length - 1 ? (
