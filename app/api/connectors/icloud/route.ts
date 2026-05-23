@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { getUser } from '@/lib/supabase/server';
 import sql from '@/lib/db/pg';
 import { v4 as uuid } from 'uuid';
 import nodemailer from 'nodemailer';
@@ -15,8 +15,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Apple ID and app password required' }, { status: 400 });
   }
 
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = await getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const userId = user.id;
 
   // Verify credentials by attempting SMTP connection to iCloud
   try {
@@ -60,8 +61,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = await getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const userId = user.id;
 
   const { provider } = await req.json();
 

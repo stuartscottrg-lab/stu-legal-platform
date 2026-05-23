@@ -14,19 +14,19 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://clerk.stu.ink https://*.clerk.accounts.dev https://js.stripe.com https://challenges.cloudflare.com",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
-      "connect-src 'self' https://clerk.stu.ink https://*.clerk.accounts.dev https://api.anthropic.com https://api.voyageai.com https://api.stripe.com https://challenges.cloudflare.com",
-      "frame-src https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com",
+      "connect-src 'self' https://*.supabase.co https://api.anthropic.com https://api.voyageai.com https://api.stripe.com",
+      "frame-src https://js.stripe.com https://hooks.stripe.com",
       "worker-src 'self' blob:",
     ].join('; '),
   },
 ];
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ['better-sqlite3', 'pdf-parse', 'mammoth'],
+  serverExternalPackages: ['pdf-parse', 'mammoth'],
   turbopack: {},
   headers: async () => [
     {

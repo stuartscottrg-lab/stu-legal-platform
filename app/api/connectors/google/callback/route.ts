@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { getUser } from '@/lib/supabase/server';
 import sql from '@/lib/db/pg';
 import { v4 as uuid } from 'uuid';
 
@@ -57,12 +57,12 @@ export async function GET(req: NextRequest) {
     const userInfo = await userRes.json();
 
     // Resolve user_id from Clerk session
-    const { userId } = await auth();
-    if (!userId) return NextResponse.redirect(`${redirectTo}?error=unauthorized`);
+    const user = await getUser();
+    if (!user) return NextResponse.redirect(`${redirectTo}?error=unauthorized`);
 
     // Upsert connector token in DB
     const [existing] = await sql`
-      SELECT id FROM connector_tokens WHERE provider=${'google'} AND (user_id=${userId} OR (user_id IS NULL AND account=${userInfo.email}))
+      SELECT id FROM connector_tokens WHERE provider=${'google'} AND (user_id=${user.id} OR (user_id IS NULL AND account=${userInfo.email}))
     ` as any[];
 
     if (existing) {
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
     } else {
       await sql`
         INSERT INTO connector_tokens (id, user_id, provider, account, access_token, refresh_token, expires_at, scope)
-        VALUES (${uuid()}, ${userId}, ${'google'}, ${userInfo.email}, ${tokens.access_token}, ${tokens.refresh_token ?? null}, ${tokens.expires_in ? Math.floor(Date.now() / 1000) + tokens.expires_in : null}, ${tokens.scope ?? null})
+        VALUES (${uuid()}, ${"'google'"}${'google'}, ${userInfo.email}, ${tokens.access_token}, ${tokens.refresh_token ?? null}, ${tokens.expires_in ? Math.floor(Date.now() / 1000) + tokens.expires_in : null}, ${tokens.scope ?? null})
       `;
     }
 

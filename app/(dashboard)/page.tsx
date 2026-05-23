@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Paperclip, Sparkles, ArrowUp, RotateCcw, Search, ChevronRight, FileText, X, Brain, Upload, Mail, Inbox, Volume2, VolumeX } from 'lucide-react';
 import Link from 'next/link';
 import { PERSONAS, getPersona, DEFAULT_PERSONA_ID, type Persona } from '@/lib/personas';
@@ -154,33 +154,191 @@ function ThinkingBlock({ thinking, open, onToggle }: { thinking: string; open: b
   );
 }
 
-function formatAI(text: string) {
+/* ── Rich inline formatter: bold, italic, inline code ── */
+function formatInline(text: string): React.ReactNode[] {
+  // Process: **bold**, *italic*, `code`, ***bold+italic***, _italic_
+  const parts: React.ReactNode[] = [];
+  const re = /(`[^`]+`|\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_)/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  let idx = 0;
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > last) parts.push(text.slice(last, match.index));
+    const raw = match[0];
+    if (raw.startsWith('`')) {
+      parts.push(<code key={idx++} style={{ fontFamily: 'monospace', fontSize: '12.5px', background: 'var(--c-panel)', border: '1px solid var(--c-border)', borderRadius: '4px', padding: '1px 5px', color: 'var(--c-text)' }}>{raw.slice(1, -1)}</code>);
+    } else if (raw.startsWith('***')) {
+      parts.push(<strong key={idx++}><em>{raw.slice(3, -3)}</em></strong>);
+    } else if (raw.startsWith('**')) {
+      parts.push(<strong key={idx++}>{raw.slice(2, -2)}</strong>);
+    } else if (raw.startsWith('*') || raw.startsWith('_')) {
+      parts.push(<em key={idx++}>{raw.slice(1, -1)}</em>);
+    }
+    last = match.index + raw.length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+}
+
+/* ── Table parser ── */
+function parseTable(lines: string[]): React.ReactNode {
+  const rows = lines.map(l => l.replace(/^\||\|$/g, '').split('|').map(c => c.trim()));
+  const header = rows[0];
+  const body = rows.slice(2); // skip separator row
   return (
-    <div style={{ fontSize: '14px', lineHeight: '1.8', color: 'var(--c-text)' }}>
-      {text.split('\n').map((line, i) => {
-        if (!line.trim()) return <br key={i} />;
-        if (line.startsWith('### ')) return <h3 key={i} style={{ fontSize: '13px', fontWeight: '700', color: 'var(--c-text)', margin: '16px 0 6px', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.7 }}>{line.slice(4)}</h3>;
-        if (line.startsWith('## ')) return <h2 key={i} style={{ fontSize: '15px', fontWeight: '600', color: 'var(--c-text)', margin: '20px 0 8px' }}>{line.slice(3)}</h2>;
-        if (line.startsWith('# ')) return <h1 key={i} style={{ fontSize: '17px', fontWeight: '600', color: 'var(--c-text)', margin: '20px 0 8px' }}>{line.slice(2)}</h1>;
-        if (line.startsWith('**') && line.endsWith('**')) return <p key={i} style={{ fontWeight: '600', margin: '8px 0' }}>{line.slice(2, -2)}</p>;
-        if (line.startsWith('- ') || line.startsWith('• ')) {
-          const content = line.slice(2);
-          const parts = content.split(/\*\*(.+?)\*\*/g);
-          return (
-            <p key={i} style={{ paddingLeft: '14px', margin: '4px 0', color: 'var(--c-text)' }}>
-              · {parts.map((p, j) => j % 2 === 1 ? <strong key={j}>{p}</strong> : p)}
-            </p>
-          );
-        }
-        const parts = line.split(/\*\*(.+?)\*\*/g);
-        return (
-          <p key={i} style={{ margin: '6px 0', color: 'var(--c-text)' }}>
-            {parts.map((p, j) => j % 2 === 1 ? <strong key={j}>{p}</strong> : p)}
-          </p>
-        );
-      })}
+    <div style={{ overflowX: 'auto', margin: '14px 0' }}>
+      <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '13px' }}>
+        <thead>
+          <tr>
+            {header.map((cell, i) => (
+              <th key={i} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: '600', color: 'var(--c-text)', borderBottom: '2px solid var(--c-border)', whiteSpace: 'nowrap', background: 'var(--c-panel)' }}>{formatInline(cell)}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {body.map((row, ri) => (
+            <tr key={ri} style={{ borderBottom: '1px solid var(--c-border)' }}>
+              {row.map((cell, ci) => (
+                <td key={ci} style={{ padding: '8px 12px', color: 'var(--c-text)', verticalAlign: 'top' }}>{formatInline(cell)}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
+}
+
+function formatAI(text: string) {
+  const lines = text.split('\n');
+  const nodes: React.ReactNode[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Code block
+    if (line.startsWith('```')) {
+      const lang = line.slice(3).trim();
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].startsWith('```')) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      nodes.push(
+        <div key={i} style={{ margin: '14px 0', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--c-border)' }}>
+          {lang && <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--c-text-4)', padding: '6px 14px', background: 'var(--c-panel)', borderBottom: '1px solid var(--c-border)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{lang}</div>}
+          <pre style={{ margin: 0, padding: '14px 16px', fontSize: '12.5px', lineHeight: '1.65', background: 'var(--c-panel)', overflowX: 'auto', color: 'var(--c-text)', fontFamily: 'monospace' }}><code>{codeLines.join('\n')}</code></pre>
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // Table (detect by pipe pattern)
+    if (line.startsWith('|') && i + 1 < lines.length && lines[i + 1].match(/^\|[\s\-:|]+\|/)) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].startsWith('|')) {
+        tableLines.push(lines[i]);
+        i++;
+      }
+      nodes.push(<div key={i}>{parseTable(tableLines)}</div>);
+      continue;
+    }
+
+    // Headings
+    if (line.startsWith('### ')) {
+      nodes.push(<h3 key={i} style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--c-text)', margin: '22px 0 6px', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.6 }}>{formatInline(line.slice(4))}</h3>);
+      i++; continue;
+    }
+    if (line.startsWith('## ')) {
+      nodes.push(<h2 key={i} style={{ fontSize: '15px', fontWeight: '600', color: 'var(--c-text)', margin: '24px 0 8px', letterSpacing: '-0.2px' }}>{formatInline(line.slice(3))}</h2>);
+      i++; continue;
+    }
+    if (line.startsWith('# ')) {
+      nodes.push(<h1 key={i} style={{ fontSize: '18px', fontWeight: '700', color: 'var(--c-text)', margin: '24px 0 10px', letterSpacing: '-0.3px' }}>{formatInline(line.slice(2))}</h1>);
+      i++; continue;
+    }
+
+    // Horizontal rule
+    if (line.match(/^[-*_]{3,}$/)) {
+      nodes.push(<hr key={i} style={{ border: 'none', borderTop: '1px solid var(--c-border)', margin: '20px 0' }} />);
+      i++; continue;
+    }
+
+    // Unordered list — collect consecutive items
+    if (line.startsWith('- ') || line.startsWith('• ') || line.startsWith('* ')) {
+      const items: string[] = [];
+      while (i < lines.length && (lines[i].startsWith('- ') || lines[i].startsWith('• ') || lines[i].startsWith('* '))) {
+        items.push(lines[i].slice(2));
+        i++;
+      }
+      nodes.push(
+        <ul key={i} style={{ margin: '8px 0', paddingLeft: 0, listStyle: 'none' }}>
+          {items.map((item, j) => (
+            <li key={j} style={{ display: 'flex', gap: '8px', marginBottom: '5px', fontSize: '14px', lineHeight: '1.75', color: 'var(--c-text)', alignItems: 'flex-start' }}>
+              <span style={{ color: 'var(--c-text-3)', flexShrink: 0, marginTop: '1px', fontWeight: '600' }}>·</span>
+              <span>{formatInline(item)}</span>
+            </li>
+          ))}
+        </ul>
+      );
+      continue;
+    }
+
+    // Ordered list — collect consecutive items
+    if (/^\d+\.\s/.test(line)) {
+      const items: string[] = [];
+      let startNum = parseInt(line.match(/^(\d+)\./)?.[1] ?? '1', 10);
+      while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
+        items.push(lines[i].replace(/^\d+\.\s/, ''));
+        i++;
+      }
+      nodes.push(
+        <ol key={i} start={startNum} style={{ margin: '8px 0', paddingLeft: 0, listStyle: 'none' }}>
+          {items.map((item, j) => (
+            <li key={j} style={{ display: 'flex', gap: '10px', marginBottom: '6px', fontSize: '14px', lineHeight: '1.75', color: 'var(--c-text)', alignItems: 'flex-start' }}>
+              <span style={{ color: 'var(--c-text-4)', flexShrink: 0, fontWeight: '600', minWidth: '18px', fontVariantNumeric: 'tabular-nums', marginTop: '1px' }}>{startNum + j}.</span>
+              <span>{formatInline(item)}</span>
+            </li>
+          ))}
+        </ol>
+      );
+      continue;
+    }
+
+    // Blockquote
+    if (line.startsWith('> ')) {
+      const quoteLines: string[] = [];
+      while (i < lines.length && lines[i].startsWith('> ')) {
+        quoteLines.push(lines[i].slice(2));
+        i++;
+      }
+      nodes.push(
+        <blockquote key={i} style={{ margin: '12px 0', padding: '10px 16px', borderLeft: '3px solid var(--c-border-s)', background: 'var(--c-panel)', borderRadius: '0 6px 6px 0', color: 'var(--c-text-2)', fontStyle: 'italic', fontSize: '13.5px', lineHeight: '1.7' }}>
+          {quoteLines.map((l, j) => <p key={j} style={{ margin: j > 0 ? '6px 0 0' : 0 }}>{formatInline(l)}</p>)}
+        </blockquote>
+      );
+      continue;
+    }
+
+    // Blank line
+    if (!line.trim()) {
+      nodes.push(<div key={i} style={{ height: '10px' }} />);
+      i++; continue;
+    }
+
+    // Normal paragraph
+    nodes.push(
+      <p key={i} style={{ margin: '4px 0', fontSize: '14px', lineHeight: '1.8', color: 'var(--c-text)' }}>
+        {formatInline(line)}
+      </p>
+    );
+    i++;
+  }
+
+  return <div style={{ color: 'var(--c-text)' }}>{nodes}</div>;
 }
 
 /* ── Files & Sources modal ── */
@@ -645,10 +803,16 @@ export default function AssistantPage() {
       </div>
 
       {/* Wordmark */}
-      <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-        <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--c-text)', letterSpacing: '-0.5px' }}>Stu</div>
-        <div style={{ fontSize: '13px', color: 'var(--c-text-3)', marginTop: '4px' }}>Your AI legal assistant</div>
-      </div>
+      {mounted && (
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--c-text)', letterSpacing: '-0.5px' }}>Stu</div>
+          <div style={{ fontSize: '13px', color: 'var(--c-text-3)', marginTop: '4px' }}>
+            {persona.id === 'alpha' && 'Here to explain clearly — ask anything.'}
+            {persona.id === 'sigma' && 'What do you need to decide today?'}
+            {persona.id === 'omega' && 'What problem are we solving?'}
+          </div>
+        </div>
+      )}
 
       {/* Context selector */}
       {matters.length > 0 && (

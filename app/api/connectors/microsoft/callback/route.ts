@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { getUser } from '@/lib/supabase/server';
 import sql from '@/lib/db/pg';
 import { v4 as uuid } from 'uuid';
 
@@ -55,11 +55,11 @@ export async function GET(req: NextRequest) {
     const userInfo = await userRes.json();
     const account = userInfo.mail || userInfo.userPrincipalName;
 
-    const { userId } = await auth();
-    if (!userId) return NextResponse.redirect(`${redirectTo}?error=unauthorized`);
+    const user = await getUser();
+    if (!user) return NextResponse.redirect(`${redirectTo}?error=unauthorized`);
 
     const [existing] = await sql`
-      SELECT id FROM connector_tokens WHERE provider=${'microsoft'} AND (user_id=${userId} OR account=${account})
+      SELECT id FROM connector_tokens WHERE provider=${'microsoft'} AND (user_id=${user.id} OR account=${account})
     ` as any[];
 
     if (existing) {
@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
     } else {
       await sql`
         INSERT INTO connector_tokens (id, user_id, provider, account, access_token, refresh_token, expires_at)
-        VALUES (${uuid()}, ${userId}, ${'microsoft'}, ${account}, ${tokens.access_token}, ${tokens.refresh_token ?? null}, ${tokens.expires_in ? Math.floor(Date.now() / 1000) + tokens.expires_in : null})
+        VALUES (${uuid()}, ${user.id}, ${'microsoft'}, ${account}, ${tokens.access_token}, ${tokens.refresh_token ?? null}, ${tokens.expires_in ? Math.floor(Date.now() / 1000) + tokens.expires_in : null})
       `;
     }
 

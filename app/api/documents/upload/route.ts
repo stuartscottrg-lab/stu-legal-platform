@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { getUser } from '@/lib/supabase/server';
 import sql from '@/lib/db/pg';
 import { generateAnnotations } from '@/lib/ai';
 import { v4 as uuidv4 } from 'uuid';
@@ -84,7 +84,7 @@ async function extractText(buf: Buffer, mime: string, name: string): Promise<str
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = await auth();
+    const user = await getUser();
     const fd = await req.formData();
     const file = fd.get('file') as File;
     const matterId = (fd.get('matterId') as string) || null;
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
       // Filesystem not writable (e.g. Railway) — text extracted from memory buffer below
     }
 
-    await sql`INSERT INTO documents (id,matter_id,filename,original_name,mime_type,size_bytes,storage_path,status,uploaded_by) VALUES (${docId}, ${matterId}, ${`${docId}.${ext}`}, ${file.name}, ${file.type}, ${buf.length}, ${storagePath}, ${'processing'}, ${userId ?? 'anon'})`;
+    await sql`INSERT INTO documents (id,matter_id,filename,original_name,mime_type,size_bytes,storage_path,status,uploaded_by) VALUES (${docId}, ${matterId}, ${`${docId}.${ext}`}, ${file.name}, ${file.type}, ${buf.length}, ${storagePath}, ${'processing'}, ${user?.id ?? 'anon'})`;
 
     // Background processing
     (async () => {
@@ -124,11 +124,11 @@ export async function POST(req: NextRequest) {
           }
 
           // Embed document chunks into user memory
-          if (userId && userId !== 'anon') {
+          if (user?.id) {
             const chunks = chunkText(text);
             for (const chunk of chunks) {
               await storeMemory({
-                userId,
+                userId: user.id,
                 content: `From document "${file.name}": ${chunk}`,
                 sourceType: 'document',
                 sourceId: docId,

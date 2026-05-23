@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import type { User } from '@supabase/supabase-js';
 import { PERSONAS, getPersona, DEFAULT_PERSONA_ID, type Persona } from '@/lib/personas';
 import { Check, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
@@ -19,16 +21,17 @@ function SettingRow({ label, value, href, onClick, last }: {
   last?: boolean;
 }) {
   const content = (
-    <div style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      padding: '13px 20px', fontSize: '13px',
-      borderBottom: last ? 'none' : '1px solid var(--c-border)',
-      cursor: href || onClick ? 'pointer' : 'default',
-      transition: 'background 0.1s',
-    }}
-    onMouseOver={e => { if (href || onClick) (e.currentTarget as HTMLDivElement).style.background = 'var(--c-panel)'; }}
-    onMouseOut={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
-    onClick={onClick}
+    <div
+      style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '13px 20px', fontSize: '13px',
+        borderBottom: last ? 'none' : '1px solid var(--c-border)',
+        cursor: href || onClick ? 'pointer' : 'default',
+        transition: 'background 0.1s',
+      }}
+      onMouseOver={e => { if (href || onClick) (e.currentTarget as HTMLDivElement).style.background = 'var(--c-panel)'; }}
+      onMouseOut={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+      onClick={onClick}
     >
       <span style={{ color: 'var(--c-text-2)' }}>{label}</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -44,16 +47,23 @@ function SettingRow({ label, value, href, onClick, last }: {
 export default function SettingsPage() {
   const [persona, setPersona] = useState<Persona>(getPersona(DEFAULT_PERSONA_ID));
   const { theme, toggle } = useTheme();
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('stu_persona');
     if (saved) setPersona(getPersona(saved));
+    // Fetch Supabase user
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
   }, []);
 
   const handlePersona = (p: Persona) => {
     setPersona(p);
     localStorage.setItem('stu_persona', p.id);
   };
+
+  const email = user?.email ?? '—';
+  const name = user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? null;
 
   return (
     <div style={{ padding: '32px 40px 80px', maxWidth: '600px' }}>
@@ -135,37 +145,33 @@ export default function SettingsPage() {
       <section style={{ marginBottom: '28px' }}>
         <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '10px' }}>Account</div>
         <div style={{ background: 'var(--c-card)', border: '1px solid var(--c-border)', borderRadius: '12px', overflow: 'hidden' }}>
-          <SettingRow label="Email" value="stuart@firm.com" />
-          <SettingRow label="Plan" value={<span style={{ color: '#16a34a', fontWeight: '600' }}>Internal · Personal</span>} />
-          <SettingRow label="AI Model" value="Claude Sonnet 4.5" />
-          <SettingRow label="Jurisdiction" value="England & Wales" />
-          <SettingRow label="Storage" value="Railway · /data volume" last />
+          {name && <SettingRow label="Name" value={name} />}
+          <SettingRow label="Email" value={
+            <span style={{ fontFamily: 'monospace', fontSize: '12px', letterSpacing: '-0.2px' }}>
+              {email}
+            </span>
+          } last={!name} />
+          {name && <SettingRow label="Email" value={<span style={{ fontFamily: 'monospace', fontSize: '12px' }}>{email}</span>} last />}
         </div>
       </section>
 
-      {/* Integrations shortcut */}
+      {/* Billing */}
+      <section style={{ marginBottom: '28px' }}>
+        <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '10px' }}>Billing</div>
+        <div style={{ background: 'var(--c-card)', border: '1px solid var(--c-border)', borderRadius: '12px', overflow: 'hidden' }}>
+          <SettingRow label="Current plan" value={<span style={{ color: '#16a34a', fontWeight: '600' }}>Early access</span>} />
+          <SettingRow label="View plans & upgrade" value="Solo, Firm, and Enterprise" href="/pricing" last />
+        </div>
+        <p style={{ fontSize: '11px', color: 'var(--c-text-4)', marginTop: '8px', lineHeight: '1.6' }}>
+          Manage your subscription, invoices, and payment method from the pricing page.
+        </p>
+      </section>
+
+      {/* Integrations */}
       <section style={{ marginBottom: '28px' }}>
         <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '10px' }}>Integrations</div>
         <div style={{ background: 'var(--c-card)', border: '1px solid var(--c-border)', borderRadius: '12px', overflow: 'hidden' }}>
-          <SettingRow label="Connected services" value="Manage email, calendar & document connectors" href="/connectors" />
-        </div>
-      </section>
-
-      {/* Keyboard shortcuts */}
-      <section style={{ marginBottom: '28px' }}>
-        <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '10px' }}>Keyboard Shortcuts</div>
-        <div style={{ background: 'var(--c-card)', border: '1px solid var(--c-border)', borderRadius: '12px', overflow: 'hidden' }}>
-          {[
-            ['New conversation', '⌘ K'],
-            ['Send message', '↵ Enter'],
-            ['New line', '⇧ Shift + Enter'],
-            ['Toggle theme', '⌘ ⇧ D'],
-          ].map(([action, shortcut], i, arr) => (
-            <div key={action} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 20px', borderBottom: i < arr.length - 1 ? '1px solid var(--c-border)' : 'none' }}>
-              <span style={{ fontSize: '13px', color: 'var(--c-text-2)' }}>{action}</span>
-              <code style={{ fontSize: '11px', color: 'var(--c-text-3)', background: 'var(--c-panel)', border: '1px solid var(--c-border)', borderRadius: '5px', padding: '2px 8px', fontFamily: 'monospace' }}>{shortcut}</code>
-            </div>
-          ))}
+          <SettingRow label="Connected services" value="Email, calendar & documents" href="/connectors" last />
         </div>
       </section>
 
@@ -173,12 +179,10 @@ export default function SettingsPage() {
       <section>
         <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '10px' }}>About</div>
         <div style={{ background: 'var(--c-card)', border: '1px solid var(--c-border)', borderRadius: '12px', overflow: 'hidden' }}>
-          <SettingRow label="Version" value="1.0.0-beta" />
-          <SettingRow label="AI Provider" value="Anthropic" />
-          <SettingRow label="Data residency" value="EU (Railway — AWS eu-west-1)" last />
+          <SettingRow label="Version" value="1.0.0-beta" last />
         </div>
         <p style={{ fontSize: '11px', color: 'var(--c-text-4)', marginTop: '10px', lineHeight: '1.65' }}>
-          Stu is an internal AI legal assistant. All conversations and documents remain private to your account. No data is used to train AI models.
+          All conversations and documents are private to your account. Your data is never used to train AI models.
         </p>
       </section>
     </div>

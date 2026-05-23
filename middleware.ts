@@ -1,45 +1,65 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
-import { NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
+import { NextRequest, NextResponse } from 'next/server';
 
-const isPublicRoute = createRouteMatcher([
-  '/login(.*)',
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/pricing(.*)',
-  '/api/health(.*)',
-  '/api/auth(.*)',
-  '/api/stripe/webhook(.*)',
-  '/api/firms(.*)',
-  '/api/connectors/google/callback(.*)',
-  '/api/connectors/microsoft/callback(.*)',
-]);
+const PUBLIC_PATHS = [
+  '/sign-in',
+  '/sign-up',
+  '/auth/callback',
+  '/login',
+  '/pricing',
+  '/api/health',
+  '/api/auth',
+  '/api/stripe/webhook',
+  '/api/firms',
+  '/api/connectors/google/callback',
+  '/api/connectors/microsoft/callback',
+];
 
-const isApiRoute = createRouteMatcher(['/api/(.*)']);
+function isPublic(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+  return PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
+}
 
-export default clerkMiddleware(async (auth, req) => {
-  if (!isPublicRoute(req)) {
-    const { userId } = await auth();
+function isApi(req: NextRequest) {
+  return req.nextUrl.pathname.startsWith('/api/');
+}
 
-    if (!userId) {
-      // API routes get 401, page routes redirect to sign-in
-      if (isApiRoute(req)) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-      // Use x-forwarded-host so Railway's internal localhost:8080 doesn't leak
-      const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? 'stu.ink';
-      const proto = req.headers.get('x-forwarded-proto') ?? 'https';
-      const reqPath = new URL(req.url).pathname + new URL(req.url).search;
-      const publicOrigin = `${proto}://${host}`;
-      // Use Clerk's hosted sign-in (accounts.stu.ink) — avoids embedded component issues
-      const signInUrl = new URL('https://accounts.stu.ink/sign-in');
-      signInUrl.searchParams.set('redirect_url', `${publicOrigin}${reqPath}`);
-      return NextResponse.redirect(signInUrl);
+export async function middleware(req: NextRequest) {
+  let res = NextResponse.next({ request: req });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return req.cookies.getAll(); },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => req.cookies.set(name, value));
+          res = NextResponse.next({ request: req });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            res.cookies.set(name, value, options),
+          );
+        },
+      },
+    },
+  );
+
+  // Refresh session — required for SSR to keep tokens fresh
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user && !isPublic(req)) {
+    if (isApi(req)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const signIn = req.nextUrl.clone();
+    signIn.pathname = '/sign-in';
+    signIn.searchParams.set('redirect', req.nextUrl.pathname);
+    return NextResponse.redirect(signIn);
   }
-});
+
+  return res;
+}
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 };
