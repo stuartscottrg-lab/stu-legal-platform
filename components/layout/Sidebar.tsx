@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import {
   Sparkles, FolderOpen, Workflow, History, Library,
-  Mail, Clock, Search, Settings, Sun, Moon, ChevronDown, ChevronRight, Plus, Plug, Table2, LogOut, Scale,
+  Mail, Clock, Search, Settings, Sun, Moon, ChevronDown, ChevronRight, Plus, Plug, Table2, LogOut, Scale, Users, BarChart3,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useConnectors } from '@/lib/hooks/useConnectors';
@@ -152,6 +152,11 @@ export default function Sidebar({ onClose }: { onClose?: () => void } = {}) {
         {navItem('/templates', <History size={14} />, 'Templates')}
         {navItem('/find-firms', <Scale size={14} />, 'Find a Firm')}
         {navItem('/connectors', <Plug size={14} />, 'Connectors', anyConnected ? undefined : 0)}
+
+        <div style={{ height: '1px', background: 'var(--c-border)', margin: '6px 4px' }} />
+
+        {navItem('/team', <Users size={14} />, 'Team')}
+        {navItem('/admin', <BarChart3 size={14} />, 'Firm Dashboard')}
       </nav>
 
       {/* Footer */}
