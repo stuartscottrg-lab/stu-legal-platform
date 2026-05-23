@@ -30,7 +30,8 @@ export default clerkMiddleware(async (auth, req) => {
       const proto = req.headers.get('x-forwarded-proto') ?? 'https';
       const reqPath = new URL(req.url).pathname + new URL(req.url).search;
       const publicOrigin = `${proto}://${host}`;
-      const signInUrl = new URL('/sign-in', publicOrigin);
+      // Use Clerk's hosted sign-in (accounts.stu.ink) — avoids embedded component issues
+      const signInUrl = new URL('https://accounts.stu.ink/sign-in');
       signInUrl.searchParams.set('redirect_url', `${publicOrigin}${reqPath}`);
       return NextResponse.redirect(signInUrl);
     }
