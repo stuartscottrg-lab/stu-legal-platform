@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { legalResearch } from '@/lib/ai';
+import { getUser } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const user = await getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
     const body = await req.json();
     const { question } = body;

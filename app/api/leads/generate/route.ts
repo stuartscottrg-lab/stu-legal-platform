@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { getUser } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const user = await getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   try {
     const { name, company, role, industry, painPoints, notes } = await req.json();

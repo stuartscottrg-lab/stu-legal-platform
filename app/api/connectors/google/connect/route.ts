@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-
+import { getUser } from '@/lib/supabase/server';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -13,8 +12,8 @@ const SCOPES = [
 ].join(' ');
 
 export async function GET(req: NextRequest) {
-  
-  
+  const user = await getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   if (!clientId) {

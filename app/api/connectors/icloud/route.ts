@@ -3,21 +3,37 @@ import { getUser } from '@/lib/supabase/server';
 import sql from '@/lib/db/pg';
 import { v4 as uuid } from 'uuid';
 import nodemailer from 'nodemailer';
+import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
+
+const ENC_KEY = Buffer.from(
+  (process.env.CREDENTIAL_ENCRYPTION_KEY ?? '').padEnd(64, '0').slice(0, 64),
+  'hex',
+); // 32 bytes from 64-char hex env var
+
+function encrypt(text: string): string {
+  const iv = randomBytes(16);
+  const cipher = createCipheriv('aes-256-cbc', ENC_KEY, iv);
+  return iv.toString('hex') + ':' + cipher.update(text, 'utf8', 'hex') + cipher.final('hex');
+}
+
+export function decrypt(encrypted: string): string {
+  const [ivHex, data] = encrypted.split(':');
+  const decipher = createDecipheriv('aes-256-cbc', ENC_KEY, Buffer.from(ivHex, 'hex'));
+  return decipher.update(data, 'hex', 'utf8') + decipher.final('utf8');
+}
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
-  
-  
+  // Auth check FIRST — before reading any credentials from the request
+  const user = await getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userId = user.id;
 
   const { appleId, appPassword } = await req.json();
   if (!appleId || !appPassword) {
     return NextResponse.json({ error: 'Apple ID and app password required' }, { status: 400 });
   }
-
-  const user = await getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const userId = user.id;
 
   // Verify credentials by attempting SMTP connection to iCloud
   try {
@@ -38,8 +54,7 @@ export async function POST(req: NextRequest) {
       SELECT id FROM connector_tokens WHERE provider=${'icloud'} AND (user_id=${userId} OR account=${appleId})
     ` as any[];
 
-    // Store encrypted in production — for now store as-is (local dev only)
-    const extra = JSON.stringify({ appPassword });
+    const extra = JSON.stringify({ appPassword: encrypt(appPassword) });
 
     if (existing) {
       await sql`UPDATE connector_tokens SET account=${appleId}, extra=${extra}, updated_at=CURRENT_TIMESTAMP WHERE id=${existing.id}`;

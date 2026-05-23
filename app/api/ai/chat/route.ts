@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db/pg';
 import { chatWithDocument } from '@/lib/ai';
 import { v4 as uuidv4 } from 'uuid';
+import { getUser } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const user = await getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
     const { documentId, messages } = await req.json();
     const [doc] = await sql`SELECT extracted_text FROM documents WHERE id=${documentId}` as any[];
