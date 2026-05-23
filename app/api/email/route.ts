@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 
-const API_KEY = process.env.ANTHROPIC_API_KEY;
-if (!API_KEY) {
-  throw new Error('ANTHROPIC_API_KEY is not set');
-}
-const anthropic = new Anthropic({ apiKey: API_KEY });
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   try {
     const { recipient, subject, brief, tone, senderName, matter } = await req.json();
     if (!brief?.trim()) return NextResponse.json({ error: 'Brief is required' }, { status: 400 });

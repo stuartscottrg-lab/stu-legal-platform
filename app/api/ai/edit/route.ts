@@ -4,9 +4,8 @@ import sql from '@/lib/db/pg';
 
 export const dynamic = 'force-dynamic';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
 export async function POST(req: NextRequest) {
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   try {
     const { docId, instruction, selectedText } = await req.json();
     const [doc] = await sql`SELECT * FROM documents WHERE id=${docId}` as any[];
