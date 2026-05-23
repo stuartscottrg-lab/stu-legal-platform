@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Paperclip, Sparkles, ArrowUp, RotateCcw, Search, ChevronRight, FileText, X, Brain, Upload, Mail, Inbox, Volume2, VolumeX } from 'lucide-react';
 import Link from 'next/link';
-import { PERSONAS, getPersona, DEFAULT_PERSONA_ID, type Persona } from '@/lib/personas';
+import { getPersona, DEFAULT_PERSONA_ID, type Persona } from '@/lib/personas';
 import { VoiceInput, speakText, stopSpeech } from '@/components/voice/VoiceInput';
 
 /* ── Email briefing strip ── */
@@ -64,44 +64,6 @@ interface Msg { role: string; content: string; thinking?: string; thinkingOpen?:
 interface Matter { id: string; title: string; client_name: string; }
 interface Doc { id: string; original_name: string; matter_title?: string; extracted_text?: string; }
 
-/* ── Inline mode switcher ── */
-function ModeSwitcher({ current, onChange }: { current: Persona; onChange: (p: Persona) => void }) {
-  const modeLabels: Record<string, string> = {
-    alpha: 'Simple',
-    sigma: 'Strategic',
-    omega: 'Creative',
-  };
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'var(--c-panel)', borderRadius: '8px', padding: '3px' }}>
-      {PERSONAS.map(p => {
-        const active = p.id === current.id;
-        return (
-          <button
-            key={p.id}
-            onClick={() => onChange(p)}
-            title={p.description}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '6px',
-              border: 'none',
-              background: active ? 'var(--c-card)' : 'transparent',
-              boxShadow: active ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
-              fontSize: '12px',
-              fontWeight: active ? '600' : '400',
-              color: active ? 'var(--c-text)' : 'var(--c-text-3)',
-              cursor: 'pointer',
-              transition: 'all 0.12s',
-              fontFamily: 'inherit',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {modeLabels[p.id] ?? p.name}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 const PROMPT_TEMPLATES = [
   { label: 'Review NDA for key risks', meta: 'Review · Playbook', prompt: 'Walk me through the key legal risks I should look for when reviewing a non-disclosure agreement, including issues with confidential information definitions, obligations, term, permitted disclosures, and remedies.' },
@@ -114,10 +76,12 @@ const PROMPT_TEMPLATES = [
   { label: 'Force majeure analysis', meta: 'Analysis · Contract', prompt: 'Analyse the key elements of an effective force majeure clause: what events should be covered, notice requirements, consequences, relationship with MAC clauses, and lessons from COVID-19 disputes.' },
 ];
 
-const PILLS = [
-  { label: 'UK Law', color: '#2563eb' },
-  { label: 'Contract DB', color: '#16a34a' },
+const SUPPORTED_TYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain',
 ];
+const SUPPORTED_EXTS = ['.pdf', '.docx', '.txt'];
 
 function ThinkingBlock({ thinking, open, onToggle }: { thinking: string; open: boolean; onToggle: () => void }) {
   return (
@@ -455,6 +419,7 @@ export default function AssistantPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [voiceMode, setVoiceMode] = useState(false);
+  const [dropError, setDropError] = useState<string | null>(null);
   const dragCounter = useRef(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -481,6 +446,13 @@ export default function AssistantPage() {
 
   // ── Global drag-drop handlers ──────────────────────────────────────────
   const uploadDroppedFile = useCallback(async (file: File) => {
+    const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+    if (!SUPPORTED_TYPES.includes(file.type) && !SUPPORTED_EXTS.includes(ext)) {
+      setDropError(`"${file.name}" isn't supported. Drop a PDF, DOCX or TXT file.`);
+      setTimeout(() => setDropError(null), 4000);
+      return;
+    }
+    setDropError(null);
     setUploading(file.name);
     try {
       const fd = new FormData();
@@ -686,6 +658,13 @@ export default function AssistantPage() {
 
         {showFiles && <FilesModal onClose={() => setShowFiles(false)} onAttach={docs => setAttachedDocs(docs)} />}
 
+        {/* Drop error toast */}
+        {dropError && (
+          <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(239,68,68,0.95)', color: '#fff', padding: '10px 18px', borderRadius: '10px', fontSize: '13px', fontWeight: '500', zIndex: 300, boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+            {dropError}
+          </div>
+        )}
+
         {/* Header */}
         <div style={{ flexShrink: 0, borderBottom: '1px solid var(--c-border)', padding: '0 16px', height: '52px', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--c-text)' }}>Stu</span>
@@ -763,7 +742,6 @@ export default function AssistantPage() {
                   {voiceMode ? <Volume2 size={13} color="#22c55e" /> : <VolumeX size={13} color="var(--c-text-4)" />}
                 </button>
                 <div style={{ flex: 1 }} />
-                <ModeSwitcher current={persona} onChange={handlePersonaChange} />
                 <button
                   onClick={() => send()}
                   disabled={!input.trim() || streaming}
@@ -875,8 +853,6 @@ export default function AssistantPage() {
           </div>
           <VoiceInput onTranscript={t => setInput(p => p ? p + ' ' + t : t)} />
           <div style={{ flex: 1 }} />
-          {/* Mode switcher – just above/beside send button */}
-          <ModeSwitcher current={persona} onChange={handlePersonaChange} />
           <button
             onClick={() => send()}
             disabled={!input.trim()}
@@ -895,21 +871,15 @@ export default function AssistantPage() {
         </div>
       </div>
 
-      {/* Source pills + email briefing */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', marginBottom: '36px', width: '100%', maxWidth: '720px' }}>
-        <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          {[
-            ...PILLS,
-            ...(selectedMatter && matters.find(m => m.id === selectedMatter)
-              ? [{ label: matters.find(m => m.id === selectedMatter)!.title, color: '#ea580c' }]
-              : []),
-          ].map(p => (
-            <span key={p.label} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'var(--c-panel)', border: '1px solid var(--c-border)', borderRadius: '20px', padding: '4px 10px 4px 8px', fontSize: '12px', color: 'var(--c-text-2)' }}>
-              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: p.color, flexShrink: 0 }} />
-              {p.label}
-            </span>
-          ))}
+      {/* Drop error toast */}
+      {dropError && (
+        <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(239,68,68,0.95)', color: '#fff', padding: '10px 18px', borderRadius: '10px', fontSize: '13px', fontWeight: '500', zIndex: 300, boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+          {dropError}
         </div>
+      )}
+
+      {/* Email briefing */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', marginBottom: '36px', width: '100%', maxWidth: '720px' }}>
         <EmailBriefingStrip onBrief={prompt => send(prompt)} />
       </div>
 
