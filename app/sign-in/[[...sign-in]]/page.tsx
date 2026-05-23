@@ -44,7 +44,10 @@ export default function SignInPage() {
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback?redirect=${redirect}` },
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback?redirect=${redirect}`,
+        shouldCreateUser: false, // Only allow magic links for existing (invited) users
+      },
     });
     if (error) {
       setError(error.message);
