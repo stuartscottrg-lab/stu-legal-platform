@@ -3,9 +3,106 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import { PERSONAS, getPersona, DEFAULT_PERSONA_ID, type Persona } from '@/lib/personas';
-import { Check, ChevronRight } from 'lucide-react';
+import { Check, ChevronRight, KeyRound, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useTheme } from '@/components/ThemeProvider';
+
+function SetPasswordForm() {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [show, setShow] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [error, setError] = useState('');
+  const [open, setOpen] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (newPassword.length < 8) { setError('Password must be at least 8 characters.'); return; }
+    if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return; }
+    setStatus('saving');
+    const supabase = createClient();
+    const { error: err } = await supabase.auth.updateUser({ password: newPassword });
+    if (err) { setError(err.message); setStatus('error'); return; }
+    setStatus('success');
+    setNewPassword('');
+    setConfirmPassword('');
+    setTimeout(() => { setStatus('idle'); setOpen(false); }, 2500);
+  };
+
+  return (
+    <div style={{ borderTop: '1px solid var(--c-border)' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          width: '100%', padding: '13px 20px', fontSize: '13px',
+          background: 'transparent', border: 'none', cursor: 'pointer',
+          fontFamily: 'inherit', color: 'var(--c-text-2)', textAlign: 'left',
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <KeyRound size={13} style={{ opacity: 0.5 }} />
+          Set password
+        </span>
+        <ChevronRight size={13} color="var(--c-text-4)" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
+      </button>
+
+      {open && (
+        <form onSubmit={handleSubmit} style={{ padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <p style={{ fontSize: '12px', color: 'var(--c-text-3)', marginBottom: '4px', lineHeight: '1.5' }}>
+            Set a password so you can log in directly — useful for the desktop app.
+          </p>
+          <div style={{ position: 'relative' }}>
+            <input
+              type={show ? 'text' : 'password'}
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              placeholder="New password (min 8 characters)"
+              required
+              style={{
+                width: '100%', padding: '9px 36px 9px 12px', borderRadius: '8px',
+                background: 'var(--c-panel)', border: '1px solid var(--c-border)',
+                color: 'var(--c-text)', fontSize: '13px', fontFamily: 'inherit',
+                outline: 'none', boxSizing: 'border-box',
+              }}
+            />
+            <button type="button" onClick={() => setShow(s => !s)} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-3)', padding: 0, display: 'flex' }}>
+              {show ? <EyeOff size={13} /> : <Eye size={13} />}
+            </button>
+          </div>
+          <input
+            type={show ? 'text' : 'password'}
+            value={confirmPassword}
+            onChange={e => setConfirmPassword(e.target.value)}
+            placeholder="Confirm password"
+            required
+            style={{
+              width: '100%', padding: '9px 12px', borderRadius: '8px',
+              background: 'var(--c-panel)', border: '1px solid var(--c-border)',
+              color: 'var(--c-text)', fontSize: '13px', fontFamily: 'inherit',
+              outline: 'none', boxSizing: 'border-box',
+            }}
+          />
+          {error && <p style={{ fontSize: '12px', color: '#dc2626', margin: 0 }}>{error}</p>}
+          {status === 'success' && <p style={{ fontSize: '12px', color: '#16a34a', margin: 0 }}>Password set — you can now log in with it.</p>}
+          <button
+            type="submit"
+            disabled={status === 'saving'}
+            style={{
+              padding: '9px 16px', borderRadius: '8px', border: 'none',
+              background: 'var(--c-accent-bg)', color: 'var(--c-accent-text)',
+              fontSize: '13px', fontWeight: '600', cursor: status === 'saving' ? 'default' : 'pointer',
+              opacity: status === 'saving' ? 0.7 : 1, fontFamily: 'inherit',
+            }}
+          >
+            {status === 'saving' ? 'Saving…' : 'Set password'}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
 
 const modeLabels: Record<string, { label: string; description: string }> = {
   alpha: { label: 'Simple', description: 'Plain English, empathetic, explains everything clearly' },
@@ -147,24 +244,18 @@ export default function SettingsPage() {
         <div style={{ background: 'var(--c-card)', border: '1px solid var(--c-border)', borderRadius: '12px', overflow: 'hidden' }}>
           {name && <SettingRow label="Name" value={name} />}
           <SettingRow label="Email" value={
-            <span style={{ fontFamily: 'monospace', fontSize: '12px', letterSpacing: '-0.2px' }}>
-              {email}
-            </span>
-          } last={!name} />
-          {name && <SettingRow label="Email" value={<span style={{ fontFamily: 'monospace', fontSize: '12px' }}>{email}</span>} last />}
+            <span style={{ fontFamily: 'monospace', fontSize: '12px', letterSpacing: '-0.2px' }}>{email}</span>
+          } />
+          <SetPasswordForm />
         </div>
       </section>
 
-      {/* Billing */}
+      {/* Plan */}
       <section style={{ marginBottom: '28px' }}>
-        <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '10px' }}>Billing</div>
+        <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--c-text-4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '10px' }}>Plan</div>
         <div style={{ background: 'var(--c-card)', border: '1px solid var(--c-border)', borderRadius: '12px', overflow: 'hidden' }}>
-          <SettingRow label="Current plan" value={<span style={{ color: '#16a34a', fontWeight: '600' }}>Early access</span>} />
-          <SettingRow label="View plans & upgrade" value="Solo, Firm, and Enterprise" href="/pricing" last />
+          <SettingRow label="Access" value={<span style={{ color: '#16a34a', fontWeight: '600' }}>Early access — invitation only</span>} last />
         </div>
-        <p style={{ fontSize: '11px', color: 'var(--c-text-4)', marginTop: '8px', lineHeight: '1.6' }}>
-          Manage your subscription, invoices, and payment method from the pricing page.
-        </p>
       </section>
 
       {/* Integrations */}
