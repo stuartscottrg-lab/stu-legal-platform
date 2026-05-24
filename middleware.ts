@@ -5,13 +5,12 @@ const PUBLIC_PATHS = [
   '/sign-up',
   '/auth/callback',
   '/login',
-  '/pricing',
   '/api/health',
   '/api/auth',
-  '/api/stripe/webhook',
   '/api/firms',
   '/api/connectors/google/callback',
   '/api/connectors/microsoft/callback',
+  // /pricing redirects to /sign-in — no need to expose it
 ];
 
 function isPublic(pathname: string) {

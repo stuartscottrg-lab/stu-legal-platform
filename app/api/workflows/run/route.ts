@@ -1,15 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db/pg';
 import Anthropic from '@anthropic-ai/sdk';
-
 import fs from 'fs';
 import pathMod from 'path';
-function getApiKey(){if(process.env.ANTHROPIC_API_KEY)return process.env.ANTHROPIC_API_KEY;try{const c=fs.readFileSync(pathMod.join(process.cwd(),'.env.local'),'utf8');const m=c.match(/^ANTHROPIC_API_KEY=(.+)$/m);if(m?.[1])return m[1].trim();}catch{}throw new Error('ANTHROPIC_API_KEY not set');}
-function getAnthropic(){return new Anthropic({apiKey:getApiKey()});}
+import { getUser } from '@/lib/supabase/server';
+import { STU_DOCUMENT_PROMPT } from '@/lib/legal/uk-system-prompt';
+import { getRelevantKnowledge } from '@/lib/legal/uk-knowledge-base';
 
-const SYSTEM = `You are an expert legal AI assistant with deep knowledge of contract law, corporate law, and legal drafting conventions across common law and civil law jurisdictions. You assist qualified lawyers and legal professionals. Your analysis is precise, thorough, and grounded in legal reasoning.`;
+export const dynamic = 'force-dynamic';
+
+function getApiKey() {
+  if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY;
+  try {
+    const c = fs.readFileSync(pathMod.join(process.cwd(), '.env.local'), 'utf8');
+    const m = c.match(/^ANTHROPIC_API_KEY=(.+)$/m);
+    if (m?.[1]) return m[1].trim();
+  } catch {}
+  throw new Error('ANTHROPIC_API_KEY not set');
+}
+function getAnthropic() { return new Anthropic({ apiKey: getApiKey() }); }
 
 export async function POST(req: NextRequest) {
+  const user = await getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
     const { workflowPrompt, documentId, documentIds } = await req.json();
     if (!workflowPrompt) return NextResponse.json({ error: 'Missing workflowPrompt' }, { status: 400 });
@@ -28,6 +42,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No extractable text found in the selected document(s).' }, { status: 400 });
     }
 
+    // Inject UK law knowledge relevant to this workflow + document
+    const ukKnowledge = getRelevantKnowledge(workflowPrompt + ' ' + docContext.slice(0, 2000));
+    const system = STU_DOCUMENT_PROMPT + ukKnowledge;
+
     const userMessage = `${workflowPrompt}\n\n${docContext}`;
     const enc = new TextEncoder();
 
@@ -36,8 +54,8 @@ export async function POST(req: NextRequest) {
         try {
           const llmStream = getAnthropic().messages.stream({
             model: 'claude-sonnet-4-5',
-            max_tokens: 4096,
-            system: SYSTEM,
+            max_tokens: 6000,
+            system,
             messages: [{ role: 'user', content: userMessage }],
           });
           for await (const chunk of llmStream) {

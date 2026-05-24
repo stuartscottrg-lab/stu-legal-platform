@@ -162,7 +162,253 @@ Flag any clauses that are unusual, missing, or particularly onerous.`,
 12. **Governing Law** — Applicable law and jurisdiction
 13. **Key Risks** — Non-market terms, missing protections, enforceability concerns`,
   },
+
+  // ── New workflows from law skills integration ─────────────────────────
+  {
+    id: 'contract-redline',
+    title: 'Contract Redline Review',
+    category: 'Contract',
+    description: 'Full RED / YELLOW / GREEN clause analysis with specific redline suggestions and negotiation strategy — based on UK law standards.',
+    color: '#dc2626',
+    prompt: `You are reviewing this contract as a senior UK solicitor. Conduct a thorough clause-by-clause analysis under English & Welsh law.
+
+For each material clause, classify as:
+- 🟢 **GREEN** — Acceptable / market standard
+- 🟡 **YELLOW** — Negotiate — outside preferred position but within range
+- 🔴 **RED** — Escalate — material risk, requires senior review
+
+**Structure your output as follows:**
+
+## Contract Review Summary
+- Parties and roles
+- Contract type
+- Governing law
+- Overall risk rating: Low / Medium / High
+
+## Clause-by-Clause Analysis
+For each clause category (Limitation of Liability, Indemnification, IP Ownership, Data Protection / UK GDPR, Confidentiality, Term & Termination, Governing Law, Force Majeure, Payment Terms, Assignment, Change of Control):
+
+**[Clause name] — [🟢/🟡/🔴]**
+- **What it says:** [summary]
+- **UK law position:** [what English law requires or implies]
+- **Risk:** [specific exposure]
+- **Redline:** [exact alternative drafting where needed]
+
+## Top 3 Issues to Address
+## Negotiation Strategy
+## Recommended Next Steps
+
+*This review is AI-assisted and should be reviewed by a qualified solicitor before reliance.*`,
+  },
+  {
+    id: 'nda-triage',
+    title: 'NDA Triage',
+    category: 'Contract',
+    description: 'Fast triage of any NDA — mutual or one-way — flagging the key risks, missing clauses, and whether it is safe to sign.',
+    color: '#f59e0b',
+    prompt: `Triage this NDA as a UK solicitor. Give a fast, structured assessment covering:
+
+**1. Basic Structure**
+- Mutual or one-way?
+- Who is Disclosing Party / Receiving Party?
+- What is the stated purpose?
+
+**2. Red Flags** (anything that would prevent signing without amendment)
+- Scope of confidential information (too broad / too narrow?)
+- Residuals clause present? (high risk if yes — flag explicitly)
+- IP assignment or licence buried in the NDA?
+- Injunctive relief clause — is it appropriate?
+- Governing law — England & Wales? If not, flag.
+
+**3. Missing Protections** (clauses typically required but absent)
+- Return/destruction of information
+- Permitted disclosures (legal obligation carve-out, group companies)
+- Survival period after termination
+- No oral disclosure / marking requirements
+
+**4. Term Analysis**
+- Duration of obligations — is it proportionate?
+- Post-termination survival — reasonable?
+
+**5. Verdict**
+- 🟢 Safe to sign as-is
+- 🟡 Sign with minor amendments (list them)
+- 🔴 Do not sign without material revision (list issues)
+
+Be direct. A triage should be usable in 2 minutes.
+
+*AI-assisted — review with qualified solicitor before execution.*`,
+  },
+  {
+    id: 'legal-risk-assessment',
+    title: 'Legal Risk Assessment',
+    category: 'Contract',
+    description: 'Structured risk assessment of any document — identifies HIGH, MEDIUM and LOW risks with UK law references and recommended mitigations.',
+    color: '#7c3aed',
+    prompt: `Conduct a structured legal risk assessment of this document under English & Welsh law.
+
+**Output format:**
+
+## Executive Risk Summary
+- Overall risk level: HIGH / MEDIUM / LOW
+- Top 3 risks in one sentence each
+
+## Detailed Risk Register
+
+For each risk identified, complete:
+
+| Risk | Severity | Applicable UK Law | Likelihood | Mitigation |
+|------|----------|-------------------|------------|------------|
+| [description] | HIGH/MED/LOW | [statute/case] | High/Med/Low | [specific action] |
+
+Cover these risk categories as applicable:
+- **Contractual exposure** — uncapped liability, onerous obligations, penalty clauses
+- **Regulatory / compliance** — UK GDPR, Consumer Rights Act 2015, FCA if applicable, SRA rules
+- **Employment law risk** — ERA 1996, Equality Act 2010, TUPE
+- **Property risk** — LPA 1925, land registration issues, covenant exposure
+- **IP risk** — copyright, trade mark, confidentiality exposure
+- **Insolvency risk** — director duties under CA 2006, wrongful trading
+- **Data protection** — UK GDPR / DPA 2018 obligations and breach exposure
+- **Litigation risk** — limitation periods (Limitation Act 1980), pre-action protocol compliance
+
+## Priority Actions
+Numbered list of actions required, in order of urgency.
+
+*AI-assisted risk assessment. Should be reviewed by a qualified solicitor before reliance.*`,
+  },
+  {
+    id: 'sra-compliance-check',
+    title: 'SRA Compliance Check',
+    category: 'Compliance',
+    description: 'Check a document, engagement letter or firm process against SRA Standards and Regulations 2019 — conflicts, client care, AML obligations.',
+    color: '#0891b2',
+    prompt: `Review this document for compliance with SRA Standards and Regulations 2019 (England & Wales).
+
+Check against the following SRA requirements:
+
+**1. Client Care (SRA Code of Conduct 2019)**
+- Is there a clear client care letter / engagement letter?
+- Does it include: costs estimate, complaints procedure, Legal Ombudsman signposting, who has conduct?
+- Is the scope of retainer clearly defined?
+
+**2. Conflicts of Interest (Para 6.1 SRA Code)**
+- Does the document reveal any actual or potential conflict between clients?
+- Is there any conflict between client interest and firm interest?
+- If acting for multiple parties — is this permissible under the SRA exceptions?
+
+**3. Confidentiality and Disclosure**
+- Is there any risk of breaching client confidentiality?
+- Does the document contain information that may trigger a duty to disclose?
+
+**4. AML / KYC Obligations (MLR 2017)**
+- Does the matter type trigger AML obligations?
+- Has client due diligence been documented?
+- Are there any suspicious activity indicators requiring a SAR?
+
+**5. Costs Transparency (SRA Transparency Rules)**
+- Are costs clearly communicated?
+- Is the basis of charging clear?
+
+**6. AI Use Compliance**
+- Has any AI-generated content been clearly identified as requiring professional review?
+- Is the solicitor maintaining appropriate oversight of AI-assisted work?
+
+## Compliance Assessment
+- ✅ Compliant areas
+- ⚠️ Areas requiring attention (with specific SRA rule reference)
+- ❌ Non-compliant areas (with remediation required)
+
+## Recommended Actions
+Specific steps to achieve full SRA compliance.
+
+*This assessment is AI-assisted and should be reviewed by the firm's COLP / COFA before reliance.*`,
+  },
+  {
+    id: 'legal-brief',
+    title: 'Legal Brief / Advice Note',
+    category: 'Research',
+    description: 'Generate a structured legal advice note from a document or set of facts — issue, law, application, conclusion format.',
+    color: '#065f46',
+    prompt: `Using the uploaded document(s) as your factual base, produce a structured legal advice note in the format used by English & Welsh solicitors.
+
+**Structure:**
+
+## Legal Advice Note
+
+**Client:** [identify from document or leave blank]
+**Matter:** [identify from document]
+**Date:** [today]
+**Prepared by:** Stu AI (for review by qualified solicitor)
+**Status:** DRAFT — requires professional review
+
+---
+
+## 1. Instructions / Issues
+What legal questions need to be answered based on the document?
+
+## 2. Relevant Facts
+Key facts from the document material to the legal analysis.
+
+## 3. Applicable Law
+For each issue:
+- Relevant statutes (with correct section references)
+- Key case law (*Case Name [year] citation*)
+- SRA obligations if relevant
+- Always caveat: "citations should be verified before formal advice"
+
+## 4. Analysis
+Apply the law to the facts for each issue. Structure as:
+- Issue 1: [legal question]
+  - Legal position: [what the law says]
+  - Application to facts: [how it applies here]
+  - Conclusion: [clear answer]
+- Repeat for each issue
+
+## 5. Advice / Recommendations
+Clear, numbered recommendations in priority order.
+
+## 6. Next Steps
+Specific actions with suggested timeframes.
+
+---
+*This advice note is AI-assisted. It must be reviewed and approved by a qualified solicitor before being sent to or relied upon by a client. All statutory references and case citations should be independently verified.*`,
+  },
+  {
+    id: 'lease-review',
+    title: 'Commercial Lease Review',
+    category: 'Property',
+    description: 'Review a commercial lease under English law — LTA 1954 protections, break clauses, service charges, alienation, dilapidations exposure.',
+    color: '#92400e',
+    prompt: `Review this commercial lease as a UK property solicitor acting for the tenant (unless document indicates otherwise). Analyse under English property law.
+
+**Cover the following:**
+
+1. **Parties & Demise** — Landlord, Tenant, guarantor, extent of demised premises, common parts
+2. **LTA 1954 Security of Tenure** — Is it contracted out? (s.38A procedure) If not, tenant has statutory right to renew. Flag clearly.
+3. **Term & Rent Commencement** — Start date, contractual term, rent-free period
+4. **Rent & Reviews** — Initial rent, review mechanism (open market / RPI / fixed uplift), review dates, upward-only? (flag if so)
+5. **Service Charge** — Scope, cap, what's excluded, reconciliation procedure
+6. **Repair & Dilapidations** — Standard of repair (full repairing?), decorating obligations, terminal dilapidations exposure, Schedule of Condition
+7. **Alterations** — Structural vs. non-structural, consent requirements, reinstatement obligation
+8. **Alienation (Assignment & Subletting)** — Conditions for assignment (AGA required?), subletting rights, sharing occupation
+9. **Break Clause** — Who holds it (landlord / tenant / both), break date(s), conditions for exercise (must be strictly complied with), vacant possession requirement
+10. **Use** — Permitted use, flexibility for change of use, planning considerations
+11. **Insurance** — Who insures, what is insured, rent cesser if premises unusable
+12. **Forfeiture** — Grounds, notice requirements (s.146 LPA 1925), relief from forfeiture
+13. **SDLT** — Estimated SDLT on grant (flag if over thresholds)
+14. **Key Risks for Tenant** — Non-market terms, onerous obligations, missing protections
+
+## Lease Summary Table
+| Item | Position in This Lease | Market Standard | Risk |
+|------|----------------------|-----------------|------|
+
+## Top Issues to Negotiate
+## Recommended Tenant Protections to Add
+
+*AI-assisted review. Should be reviewed by a qualified property solicitor before exchange.*`,
+  },
 ];
+
 
 type Doc = { id: string; original_name: string; matter_title: string; matter_id: string };
 type WorkflowState = 'idle' | 'running' | 'done' | 'error';

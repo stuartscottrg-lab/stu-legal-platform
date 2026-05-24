@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import fs from 'fs';
 import path from 'path';
-import { getPersona, DEFAULT_PERSONA_ID } from '@/lib/personas';
 import { recallMemories, storeMemory } from '@/lib/memory/embeddings';
 import { getUser } from '@/lib/supabase/server';
 import { rateLimit } from '@/lib/rateLimit';
+import { STU_SYSTEM_PROMPT } from '@/lib/legal/uk-system-prompt';
+import { getRelevantKnowledge } from '@/lib/legal/uk-knowledge-base';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,7 @@ function getAnthropic() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, personaId, matterId } = await req.json();
+    const { messages, matterId } = await req.json();
     if (!messages?.length) {
       return NextResponse.json({ error: 'No messages provided' }, { status: 400 });
     }
@@ -39,14 +40,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 });
     }
 
-    const persona = getPersona(personaId ?? DEFAULT_PERSONA_ID);
-
-    // Recall relevant memories for context
+    // Extract the last user message for memory recall + knowledge injection
     const lastUserMsg = [...messages].reverse().find((m: any) => m.role === 'user')?.content ?? '';
-    const memories = userId ? await recallMemories(userId, lastUserMsg) : [];
+
+    // Recall relevant memories (stubbed — no-op until embeddings configured)
+    const memories = await recallMemories(userId, lastUserMsg);
     const memoryContext = memories.length > 0
-      ? `\n\n--- Relevant context from your history with this user ---\n${memories.map((m, i) => `${i + 1}. ${m}`).join('\n')}\n--- End context ---`
+      ? `\n\n--- Context from previous conversations ---\n${memories.map((m, i) => `${i + 1}. ${m}`).join('\n')}\n---`
       : '';
+
+    // Inject relevant UK law knowledge based on query topic
+    const ukKnowledge = getRelevantKnowledge(lastUserMsg);
+
+    // Build the full system prompt: UK legal AI + topic knowledge + memory
+    const systemPrompt = STU_SYSTEM_PROMPT + ukKnowledge + memoryContext;
 
     const enc = new TextEncoder();
     let fullResponse = '';
@@ -61,7 +68,7 @@ export async function POST(req: NextRequest) {
             model: 'claude-sonnet-4-5',
             max_tokens: 16000,
             thinking: { type: 'enabled', budget_tokens: 8000 },
-            system: persona.systemPrompt + memoryContext,
+            system: systemPrompt,
             messages: messages.map((m: any) => ({ role: m.role, content: m.content })),
           });
 
@@ -80,7 +87,8 @@ export async function POST(req: NextRequest) {
               }
             }
           }
-          // Store conversation in memory (non-blocking)
+
+          // Store conversation in memory (non-blocking, no-op if embeddings not configured)
           if (userId && lastUserMsg && fullResponse) {
             const memoryContent = `User asked: ${lastUserMsg.slice(0, 400)}\nStu replied: ${fullResponse.slice(0, 400)}`;
             storeMemory({ userId, content: memoryContent, sourceType: 'chat', matterId }).catch(() => {});
