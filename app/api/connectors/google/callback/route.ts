@@ -56,26 +56,29 @@ export async function GET(req: NextRequest) {
     });
     const userInfo = await userRes.json();
 
-    // Resolve user_id from Clerk session
+    // Resolve user_id — optional in bypass mode
     const user = await getUser();
-    if (!user) return NextResponse.redirect(`${redirectTo}?error=unauthorized`);
+    const userId = user?.id ?? 'anon';
 
     // Upsert connector token in DB
     const [existing] = await sql`
-      SELECT id FROM connector_tokens WHERE provider=${'google'} AND (user_id=${user.id} OR (user_id IS NULL AND account=${userInfo.email}))
+      SELECT id FROM connector_tokens WHERE provider='google' AND (user_id=${userId} OR account=${userInfo.email})
     ` as any[];
+
+    const expiresAt = tokens.expires_in ? Math.floor(Date.now() / 1000) + tokens.expires_in : null;
 
     if (existing) {
       await sql`
         UPDATE connector_tokens SET
-          access_token=${tokens.access_token}, refresh_token=${tokens.refresh_token ?? null}, expires_at=${tokens.expires_in ? Math.floor(Date.now() / 1000) + tokens.expires_in : null}, scope=${tokens.scope ?? null},
-          account=${userInfo.email}, updated_at=CURRENT_TIMESTAMP
+          access_token=${tokens.access_token}, refresh_token=${tokens.refresh_token ?? null},
+          expires_at=${expiresAt}, scope=${tokens.scope ?? null},
+          account=${userInfo.email}, updated_at=NOW()
         WHERE id=${existing.id}
       `;
     } else {
       await sql`
         INSERT INTO connector_tokens (id, user_id, provider, account, access_token, refresh_token, expires_at, scope)
-        VALUES (${uuid()}, ${"'google'"}${'google'}, ${userInfo.email}, ${tokens.access_token}, ${tokens.refresh_token ?? null}, ${tokens.expires_in ? Math.floor(Date.now() / 1000) + tokens.expires_in : null}, ${tokens.scope ?? null})
+        VALUES (${uuid()}, ${userId}, ${'google'}, ${userInfo.email}, ${tokens.access_token}, ${tokens.refresh_token ?? null}, ${expiresAt}, ${tokens.scope ?? null})
       `;
     }
 

@@ -79,7 +79,7 @@ export default function TabularReviewsPage() {
       <div style={{ padding: '40px', maxWidth: '700px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '28px' }}>
           <button onClick={() => setCreating(false)} style={{ background: 'none', border: 'none', color: 'var(--c-text-2)', cursor: 'pointer', fontSize: '20px', lineHeight: 1, padding: '2px 4px' }}>←</button>
-          <h1 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--c-text)' }}>New Tabular Review</h1>
+          <h1 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--c-text)' }}>New Extract</h1>
         </div>
 
         {/* Name */}
@@ -139,7 +139,7 @@ export default function TabularReviewsPage() {
     <div style={{ padding: '40px', maxWidth: '800px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div>
-          <h1 style={{ fontSize: '20px', fontWeight: '600', color: 'var(--c-text)', marginBottom: '4px' }}>Tabular Reviews</h1>
+          <h1 style={{ fontSize: '20px', fontWeight: '600', color: 'var(--c-text)', marginBottom: '4px' }}>Extract</h1>
           <p style={{ fontSize: '13px', color: 'var(--c-text-2)' }}>Extract structured data from multiple documents into a comparison table.</p>
         </div>
         <button onClick={() => setCreating(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--c-accent-bg)', color: 'var(--c-accent-text)', border: 'none', borderRadius: '8px', padding: '9px 16px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
@@ -150,7 +150,7 @@ export default function TabularReviewsPage() {
       {reviews.length === 0 ? (
         <div style={{ border: '1px dashed var(--c-border)', borderRadius: '12px', padding: '60px', textAlign: 'center' }}>
           <Table2 size={28} color="var(--c-text-3)" style={{ margin: '0 auto 12px' }} />
-          <p style={{ fontSize: '14px', fontWeight: '500', color: 'var(--c-text-2)', marginBottom: '6px' }}>No tabular reviews yet</p>
+          <p style={{ fontSize: '14px', fontWeight: '500', color: 'var(--c-text-2)', marginBottom: '6px' }}>No extractions yet</p>
           <p style={{ fontSize: '13px', color: 'var(--c-text-3)', marginBottom: '20px' }}>Create a review to extract and compare data across multiple documents.</p>
           <button onClick={() => setCreating(true)} style={{ padding: '9px 20px', background: 'var(--c-accent-bg)', color: 'var(--c-accent-text)', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
             Create your first review

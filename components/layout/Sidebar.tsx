@@ -33,7 +33,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void } = {}) {
   }, [path]);
 
   const isActive = useCallback((href: string) => {
-    if (href === '/') return path === '/';
+    if (href === '/assistant') return path === '/assistant';
     return path.startsWith(href);
   }, [path]);
 
@@ -89,7 +89,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void } = {}) {
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '8px 6px', display: 'flex', flexDirection: 'column', gap: '1px', overflowY: 'auto' }}>
-        {navItem('/', <Sparkles size={14} />, 'Assistant')}
+        {navItem('/assistant', <Sparkles size={14} />, 'Assistant')}
 
         {/* Matters collapsible */}
         <div>
@@ -141,7 +141,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void } = {}) {
         </div>
 
         {navItem('/playbooks', <Workflow size={14} />, 'Workflows')}
-        {navItem('/tabular-reviews', <Table2 size={14} />, 'Tabular Reviews')}
+        {navItem('/tabular-reviews', <Table2 size={14} />, 'Extract')}
         {navItem('/research', <Search size={14} />, 'Research')}
         {navItem('/documents', <Library size={14} />, 'Library')}
 

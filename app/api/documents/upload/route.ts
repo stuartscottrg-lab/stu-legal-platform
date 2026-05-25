@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
 import Anthropic from '@anthropic-ai/sdk';
-import { storeMemory, chunkText } from '@/lib/memory/embeddings';
+import { storeMemory, storeDocumentChunks, chunkText } from '@/lib/memory/embeddings';
 
 const UPLOAD_DIR = process.env.DATA_DIR
   ? path.join(process.env.DATA_DIR, 'uploads')
@@ -79,6 +79,34 @@ async function extractText(buf: Buffer, mime: string, name: string): Promise<str
     return buf.toString('utf8');
   }
 
+  // Handle image files — use Claude vision for OCR
+  if (mime.startsWith('image/') || /\.(png|jpg|jpeg|tiff|tif|webp|gif|bmp)$/.test(lname)) {
+    const imageMediaTypes: Record<string, string> = {
+      'image/png': 'image/png', 'image/jpeg': 'image/jpeg', 'image/jpg': 'image/jpeg',
+      'image/webp': 'image/webp', 'image/gif': 'image/gif',
+    };
+    const mediaType = imageMediaTypes[mime] || 'image/jpeg';
+    try {
+      const client = new Anthropic();
+      const base64 = buf.toString('base64');
+      const response = await client.messages.create({
+        model: 'claude-haiku-3-5',
+        max_tokens: 4096,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mediaType as any, data: base64 } },
+            { type: 'text', text: 'Extract all text from this image. Return only the extracted text, preserving structure. If there is no text, describe what you see briefly.' },
+          ],
+        }],
+      });
+      const block = response.content[0];
+      return block.type === 'text' ? block.text.trim() : '';
+    } catch (e) {
+      console.error('Image OCR error:', e);
+    }
+  }
+
   return '';
 }
 
@@ -123,18 +151,23 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // Embed document chunks into user memory
+          // Embed document chunks into RAG store
+          const chunks = chunkText(text);
+          await storeDocumentChunks({
+            userId: user?.id ?? 'anon',
+            documentId: docId,
+            matterId: matterId ?? null,
+            chunks,
+          });
+          // Also store a summary in user memories for chat recall
           if (user?.id) {
-            const chunks = chunkText(text);
-            for (const chunk of chunks) {
-              await storeMemory({
-                userId: user.id,
-                content: `From document "${file.name}": ${chunk}`,
-                sourceType: 'document',
-                sourceId: docId,
-                matterId: matterId ?? undefined,
-              });
-            }
+            await storeMemory({
+              userId: user.id,
+              content: `From document "${file.name}": ${text.slice(0, 600)}`,
+              sourceType: 'document',
+              sourceId: docId,
+              matterId: matterId ?? undefined,
+            });
           }
         }
       } catch (e) {

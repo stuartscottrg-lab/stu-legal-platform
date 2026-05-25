@@ -45,3 +45,8 @@ next-env.d.ts
 # local data (SQLite DB + uploaded files — never commit)
 /data
 /uploads
+
+# Desktop app binaries
+/public/downloads/*.dmg
+/public/downloads/*.exe
+/public/downloads/*.deb

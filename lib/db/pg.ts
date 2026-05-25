@@ -1,6 +1,7 @@
 import postgres from 'postgres';
 
-const connectionString = process.env.DATABASE_URL!;
+// Support both DATABASE_URL (manual) and POSTGRES_URL (Supabase-Vercel integration)
+const connectionString = (process.env.DATABASE_URL || process.env.POSTGRES_URL)!;
 
 // Single shared connection pool
 const sql = postgres(connectionString, {

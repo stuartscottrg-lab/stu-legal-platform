@@ -12,8 +12,8 @@ const SCOPES = [
 ].join(' ');
 
 export async function GET(req: NextRequest) {
-  const user = await getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // Auth optional — connector works in both authed and bypass mode
+  await getUser();
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   if (!clientId) {

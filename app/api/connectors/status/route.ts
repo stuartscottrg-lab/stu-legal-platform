@@ -6,13 +6,12 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const userId = user.id;
+  const userId = user?.id ?? '';
 
   const tokens = await sql`
     SELECT provider, account, created_at, updated_at
     FROM connector_tokens
-    WHERE user_id=${userId} OR user_id IS NULL
+    WHERE user_id=${userId} OR user_id IS NULL OR user_id='anon'
     ORDER BY updated_at DESC
   ` as any[];
 
@@ -23,7 +22,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Also report which OAuth providers are configured
+  // Also report which OAuth providers are configured in env
   const providers = {
     google: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
     microsoft: !!(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET),
@@ -35,11 +34,8 @@ export async function GET(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const userId = user.id;
-
+  const userId = user?.id ?? '';
   const { provider } = await req.json();
-
-  await sql`DELETE FROM connector_tokens WHERE provider=${provider} AND (user_id=${userId} OR user_id IS NULL)`;
+  await sql`DELETE FROM connector_tokens WHERE provider=${provider} AND (user_id=${userId} OR user_id IS NULL OR user_id='anon')`;
   return NextResponse.json({ ok: true });
 }

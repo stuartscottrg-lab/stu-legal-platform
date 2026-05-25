@@ -36,22 +36,14 @@ function hasSession(req: NextRequest): boolean {
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Always allow public paths
-  if (isPublic(pathname)) {
-    return NextResponse.next();
+  // Root redirect → assistant
+  if (pathname === '/') {
+    const url = req.nextUrl.clone();
+    url.pathname = '/assistant';
+    return NextResponse.redirect(url);
   }
 
-  // Check for a Supabase session cookie
-  if (!hasSession(req)) {
-    if (isApi(pathname)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const signIn = req.nextUrl.clone();
-    signIn.pathname = '/sign-in';
-    signIn.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(signIn);
-  }
-
+  // Auth bypassed — let everything through
   return NextResponse.next();
 }
 

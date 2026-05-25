@@ -195,6 +195,30 @@ export async function runPgMigrations() {
       WITH (lists = 100)
     `;
     await sql`CREATE INDEX IF NOT EXISTS user_memories_user_idx ON user_memories (user_id)`;
+    await sql`
+      CREATE TABLE IF NOT EXISTS document_chunks (
+        id TEXT PRIMARY KEY,
+        document_id TEXT NOT NULL,
+        matter_id TEXT,
+        user_id TEXT NOT NULL,
+        chunk_index INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS doc_chunks_user_idx ON document_chunks(user_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS doc_chunks_doc_idx ON document_chunks(document_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS doc_chunks_fts_idx ON document_chunks USING gin(to_tsvector('english', content))`;
+    await sql`
+      CREATE TABLE IF NOT EXISTS demo_requests (
+        id TEXT PRIMARY KEY,
+        full_name TEXT,
+        email TEXT,
+        phone TEXT,
+        firm_name TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `;
     console.log('✅ Postgres migrations complete');
   } catch (e) {
     console.error('Postgres migration error:', e);

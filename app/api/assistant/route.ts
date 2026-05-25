@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import fs from 'fs';
 import path from 'path';
 import { recallMemories, storeMemory } from '@/lib/memory/embeddings';
@@ -10,30 +11,132 @@ import { getRelevantKnowledge } from '@/lib/legal/uk-knowledge-base';
 
 export const dynamic = 'force-dynamic';
 
-function getApiKey(): string {
-  if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY;
+// ── Model catalogue ──────────────────────────────────────────
+export type ModelId =
+  | 'claude-sonnet-4-5'
+  | 'claude-opus-4-5'
+  | 'claude-haiku-3-5'
+  | 'gpt-4o'
+  | 'gpt-4o-mini'
+  | 'o3'
+  | 'o4-mini';
+
+export const MODELS: { id: ModelId; label: string; provider: 'anthropic' | 'openai'; description: string }[] = [
+  { id: 'claude-sonnet-4-5',  label: 'Claude Sonnet',  provider: 'anthropic', description: 'Best balance of speed & depth' },
+  { id: 'claude-opus-4-5',    label: 'Claude Opus',    provider: 'anthropic', description: 'Deepest reasoning, complex matters' },
+  { id: 'claude-haiku-3-5',   label: 'Claude Haiku',   provider: 'anthropic', description: 'Fastest, simple queries' },
+  { id: 'gpt-4o',             label: 'GPT-4o',         provider: 'openai',    description: 'OpenAI flagship model' },
+  { id: 'gpt-4o-mini',        label: 'GPT-4o mini',    provider: 'openai',    description: 'Fast & cost-efficient' },
+  { id: 'o3',                 label: 'o3',              provider: 'openai',    description: 'Deep multi-step reasoning' },
+  { id: 'o4-mini',            label: 'o4-mini',         provider: 'openai',    description: 'Fast reasoning model' },
+];
+
+// ── Key helpers ──────────────────────────────────────────────
+function getEnvKey(name: string): string {
+  if (process.env[name]) return process.env[name]!;
   try {
     const content = fs.readFileSync(path.join(process.cwd(), '.env.local'), 'utf8');
-    const match = content.match(/^ANTHROPIC_API_KEY=(.+)$/m);
+    const match = content.match(new RegExp(`^${name}=(.+)$`, 'm'));
     if (match?.[1]) return match[1].trim();
   } catch {}
-  throw new Error('ANTHROPIC_API_KEY not set');
+  throw new Error(`${name} not set`);
 }
 
 function getAnthropic() {
-  return new Anthropic({ apiKey: getApiKey() });
+  return new Anthropic({ apiKey: getEnvKey('ANTHROPIC_API_KEY') });
 }
 
+function getOpenAI() {
+  return new OpenAI({ apiKey: getEnvKey('OPENAI_API_KEY') });
+}
+
+// ── Anthropic stream ─────────────────────────────────────────
+async function streamAnthropic(
+  model: ModelId,
+  systemPrompt: string,
+  messages: { role: string; content: string }[],
+  send: (obj: object) => void,
+): Promise<string> {
+  const useThinking = model === 'claude-sonnet-4-5' || model === 'claude-opus-4-5';
+  let fullResponse = '';
+
+  const s = getAnthropic().messages.stream({
+    model,
+    max_tokens: 16000,
+    ...(useThinking ? { thinking: { type: 'enabled', budget_tokens: 8000 } } : {}),
+    system: systemPrompt,
+    messages: messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+  });
+
+  for await (const chunk of s) {
+    if (chunk.type === 'content_block_start') {
+      const cb = (chunk as any).content_block;
+      if (cb?.type === 'thinking') send({ type: 'thinking_start' });
+    }
+    if (chunk.type === 'content_block_delta') {
+      const d = (chunk as any).delta;
+      if (d?.type === 'thinking_delta') {
+        send({ type: 'thinking', text: d.thinking ?? '' });
+      } else if (d?.type === 'text_delta') {
+        fullResponse += d.text ?? '';
+        send({ type: 'text', text: d.text ?? '' });
+      }
+    }
+  }
+
+  return fullResponse;
+}
+
+// ── OpenAI stream ────────────────────────────────────────────
+async function streamOpenAI(
+  model: ModelId,
+  systemPrompt: string,
+  messages: { role: string; content: string }[],
+  send: (obj: object) => void,
+): Promise<string> {
+  let fullResponse = '';
+  const isReasoning = model === 'o3' || model === 'o4-mini';
+
+  const openaiMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+    { role: 'system', content: systemPrompt },
+    ...messages.map((m) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    })),
+  ];
+
+  const stream = await getOpenAI().chat.completions.create({
+    model,
+    messages: openaiMessages,
+    stream: true,
+    ...(isReasoning ? { max_completion_tokens: 16000 } : { max_tokens: 4096 }),
+  });
+
+  for await (const chunk of stream) {
+    const delta = chunk.choices[0]?.delta?.content ?? '';
+    if (delta) {
+      fullResponse += delta;
+      send({ type: 'text', text: delta });
+    }
+  }
+
+  return fullResponse;
+}
+
+// ── Main handler ─────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
-    const { messages, matterId } = await req.json();
+    const { messages, matterId, model: modelId } = await req.json();
     if (!messages?.length) {
       return NextResponse.json({ error: 'No messages provided' }, { status: 400 });
     }
 
+    const model: ModelId = MODELS.find((m) => m.id === modelId)?.id ?? 'claude-sonnet-4-5';
+    const modelMeta = MODELS.find((m) => m.id === model)!;
+
+    // Auth bypassed for demo — use session user if available, else fall back to demo user
     const user = await getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const userId = user.id;
+    const userId = user?.id ?? 'demo-user';
 
     // Rate limit: 60 AI requests per user per hour
     if (!rateLimit(`assistant:${userId}`, 60, 60 * 60 * 1000)) {
@@ -64,31 +167,13 @@ export async function POST(req: NextRequest) {
           ctrl.enqueue(enc.encode(`data: ${JSON.stringify(obj)}\n\n`));
 
         try {
-          const s = getAnthropic().messages.stream({
-            model: 'claude-sonnet-4-5',
-            max_tokens: 16000,
-            thinking: { type: 'enabled', budget_tokens: 8000 },
-            system: systemPrompt,
-            messages: messages.map((m: any) => ({ role: m.role, content: m.content })),
-          });
-
-          for await (const chunk of s) {
-            if (chunk.type === 'content_block_start') {
-              const cb = (chunk as any).content_block;
-              if (cb?.type === 'thinking') send({ type: 'thinking_start' });
-            }
-            if (chunk.type === 'content_block_delta') {
-              const d = (chunk as any).delta;
-              if (d?.type === 'thinking_delta') {
-                send({ type: 'thinking', text: d.thinking ?? '' });
-              } else if (d?.type === 'text_delta') {
-                fullResponse += d.text ?? '';
-                send({ type: 'text', text: d.text ?? '' });
-              }
-            }
+          if (modelMeta.provider === 'anthropic') {
+            fullResponse = await streamAnthropic(model, systemPrompt, messages, send);
+          } else {
+            fullResponse = await streamOpenAI(model, systemPrompt, messages, send);
           }
 
-          // Store conversation in memory (non-blocking, no-op if embeddings not configured)
+          // Store conversation in memory (non-blocking)
           if (userId && lastUserMsg && fullResponse) {
             const memoryContent = `User asked: ${lastUserMsg.slice(0, 400)}\nStu replied: ${fullResponse.slice(0, 400)}`;
             storeMemory({ userId, content: memoryContent, sourceType: 'chat', matterId }).catch(() => {});

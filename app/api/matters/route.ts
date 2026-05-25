@@ -7,8 +7,8 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const userId = user.id;
+  if (!user) return NextResponse.json([]); // Auth bypassed — return empty list
+  const userId = user.id;
 
   const rows = await sql`
     SELECT * FROM matters
