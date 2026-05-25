@@ -55,17 +55,25 @@ export default function SignInPage() {
     setGoogleLoading(true);
     setError('');
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirect)}`,
+        skipBrowserRedirect: true, // We'll handle the redirect ourselves
       },
     });
     if (error) {
       setError(error.message);
       setGoogleLoading(false);
+      return;
     }
-    // On success, browser is redirected automatically — no state update needed
+    if (data?.url) {
+      // Explicitly navigate — works reliably in both browser and Electron
+      window.location.href = data.url;
+    } else {
+      setError('Could not generate sign-in URL. Please try again.');
+      setGoogleLoading(false);
+    }
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
