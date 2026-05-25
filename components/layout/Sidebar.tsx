@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import {
   Sparkles, FolderOpen, Workflow, History, Library,
-  Mail, Clock, Search, Settings, Sun, Moon, ChevronDown, ChevronRight, Plus, Plug, Table2, LogOut, Scale, Users, BarChart3,
+  Mail, Clock, Search, Settings, Sun, Moon, ChevronDown, ChevronRight, Plus, Plug, Table2, LogOut, Users,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useConnectors } from '@/lib/hooks/useConnectors';
@@ -150,13 +150,11 @@ export default function Sidebar({ onClose }: { onClose?: () => void } = {}) {
         {navItem('/email', <Mail size={14} />, 'Email Drafter')}
         {navItem('/timekeeping', <Clock size={14} />, 'Time Keeping')}
         {navItem('/templates', <History size={14} />, 'Templates')}
-        {navItem('/find-firms', <Scale size={14} />, 'Find a Firm')}
         {navItem('/connectors', <Plug size={14} />, 'Connectors', anyConnected ? undefined : 0)}
 
         <div style={{ height: '1px', background: 'var(--c-border)', margin: '6px 4px' }} />
 
-        {navItem('/team', <Users size={14} />, 'Team')}
-        {navItem('/admin', <BarChart3 size={14} />, 'Firm Dashboard')}
+        {navItem('/admin', <Users size={14} />, 'Team & Dashboard')}
       </nav>
 
       {/* Footer */}

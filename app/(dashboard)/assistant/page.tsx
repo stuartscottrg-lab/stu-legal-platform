@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Paperclip, Sparkles, ArrowUp, RotateCcw, Search, ChevronRight, FileText, X, Brain, Upload, Mail, Inbox, Volume2, VolumeX } from 'lucide-react';
+import { Paperclip, Sparkles, ArrowUp, RotateCcw, Search, ChevronRight, FileText, X, Upload, Mail, Inbox, Volume2, VolumeX } from 'lucide-react';
 import Link from 'next/link';
 import { getPersona, DEFAULT_PERSONA_ID, type Persona } from '@/lib/personas';
 import { VoiceInput, speakText, stopSpeech } from '@/components/voice/VoiceInput';
@@ -441,8 +441,7 @@ export default function AssistantPage() {
   const [voiceMode, setVoiceMode] = useState(false);
   const [showVoiceChat, setShowVoiceChat] = useState(false);
   const [dropError, setDropError] = useState<string | null>(null);
-  const [selectedModel, setSelectedModel] = useState<string>('claude-sonnet-4-5');
-  const [showModelPicker, setShowModelPicker] = useState(false);
+  const selectedModel = 'claude-sonnet-4-5';
   // Email / connector state
   const [emailConnected, setEmailConnected] = useState<{ account: string; provider: string } | null>(null);
   const [emailActive, setEmailActive] = useState(false);
@@ -794,43 +793,6 @@ export default function AssistantPage() {
                 >
                   {voiceMode ? <Volume2 size={13} color="#22c55e" /> : <VolumeX size={13} color="var(--c-text-4)" />}
                 </button>
-                {/* Model picker */}
-                <div style={{ position: 'relative' }}>
-                  <button
-                    onClick={() => setShowModelPicker(v => !v)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: '1px solid var(--c-border)', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', color: 'var(--c-text-3)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
-                  >
-                    <Sparkles size={10} />
-                    {selectedModel.startsWith('claude') ? selectedModel.replace('claude-', 'Claude ').replace('-', ' ') : selectedModel}
-                  </button>
-                  {showModelPicker && (
-                    <div style={{ position: 'absolute', bottom: '36px', left: 0, background: 'var(--c-card)', border: '1px solid var(--c-border)', borderRadius: '10px', boxShadow: 'var(--c-shadow-md)', padding: '6px', zIndex: 50, minWidth: '220px' }}>
-                      {[
-                        { group: 'Anthropic', models: [
-                          { id: 'claude-sonnet-4-5', label: 'Claude Sonnet', desc: 'Best balance' },
-                          { id: 'claude-opus-4-5',   label: 'Claude Opus',   desc: 'Deepest reasoning' },
-                          { id: 'claude-haiku-3-5',  label: 'Claude Haiku',  desc: 'Fastest' },
-                        ]},
-                        { group: 'OpenAI', models: [
-                          { id: 'gpt-4o',      label: 'GPT-4o',      desc: 'Flagship' },
-                          { id: 'gpt-4o-mini', label: 'GPT-4o mini', desc: 'Fast & efficient' },
-                          { id: 'o3',          label: 'o3',          desc: 'Deep reasoning' },
-                          { id: 'o4-mini',     label: 'o4-mini',     desc: 'Fast reasoning' },
-                        ]},
-                      ].map(({ group, models }) => (
-                        <div key={group}>
-                          <div style={{ fontSize: '10px', color: 'var(--c-text-4)', padding: '4px 8px 2px', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{group}</div>
-                          {models.map(m => (
-                            <button key={m.id} onClick={() => { setSelectedModel(m.id); setShowModelPicker(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', background: selectedModel === m.id ? 'var(--c-accent-bg)' : 'none', border: 'none', borderRadius: '6px', padding: '6px 8px', fontSize: '12px', color: selectedModel === m.id ? 'var(--c-accent-text)' : 'var(--c-text)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
-                              <span style={{ fontWeight: 500 }}>{m.label}</span>
-                              <span style={{ fontSize: '10px', color: 'var(--c-text-4)' }}>{m.desc}</span>
-                            </button>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
                 <div style={{ flex: 1 }} />
                 <button
                   onClick={() => send()}
@@ -942,46 +904,6 @@ export default function AssistantPage() {
               <Sparkles size={13} /> Prompts
             </button>
             {showPrompts && <PromptsDropdown onSelect={p => { setInput(p); setShowPrompts(false); }} onClose={() => setShowPrompts(false)} />}
-          </div>
-
-          <div style={{ width: '1px', height: '16px', background: 'var(--c-border)', margin: '0 2px' }} />
-
-          {/* Model picker */}
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => setShowModelPicker(v => !v)}
-              style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', borderRadius: '7px', padding: '6px 10px', fontSize: '12.5px', color: 'var(--c-text-3)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
-            >
-              <Brain size={13} />
-              {selectedModel === 'claude-sonnet-4-5' ? 'Sonnet' : selectedModel === 'claude-opus-4-5' ? 'Opus' : selectedModel === 'claude-haiku-3-5' ? 'Haiku' : selectedModel}
-            </button>
-            {showModelPicker && (
-              <div style={{ position: 'absolute', bottom: '40px', left: 0, background: 'var(--c-card)', border: '1px solid var(--c-border)', borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)', padding: '6px', zIndex: 50, minWidth: '230px' }}>
-                {[
-                  { group: 'Anthropic', models: [
-                    { id: 'claude-sonnet-4-5', label: 'Claude Sonnet', desc: 'Best balance of speed & depth' },
-                    { id: 'claude-opus-4-5',   label: 'Claude Opus',   desc: 'Deepest reasoning, complex matters' },
-                    { id: 'claude-haiku-3-5',  label: 'Claude Haiku',  desc: 'Fastest, simple queries' },
-                  ]},
-                  { group: 'OpenAI', models: [
-                    { id: 'gpt-4o',      label: 'GPT-4o',      desc: 'OpenAI flagship' },
-                    { id: 'gpt-4o-mini', label: 'GPT-4o mini', desc: 'Fast & cost-efficient' },
-                    { id: 'o3',          label: 'o3',           desc: 'Deep multi-step reasoning' },
-                    { id: 'o4-mini',     label: 'o4-mini',      desc: 'Fast reasoning' },
-                  ]},
-                ].map(({ group, models }) => (
-                  <div key={group}>
-                    <div style={{ fontSize: '10px', color: 'var(--c-text-4)', padding: '5px 8px 3px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{group}</div>
-                    {models.map(m => (
-                      <button key={m.id} onClick={() => { setSelectedModel(m.id); setShowModelPicker(false); }} style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: '8px', background: selectedModel === m.id ? 'var(--c-accent-bg)' : 'none', border: 'none', borderRadius: '7px', padding: '7px 8px', fontSize: '12.5px', color: selectedModel === m.id ? 'var(--c-accent-text)' : 'var(--c-text)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
-                        <span style={{ fontWeight: 500 }}>{m.label}</span>
-                        <span style={{ fontSize: '10.5px', color: 'var(--c-text-4)', whiteSpace: 'nowrap' }}>{m.desc}</span>
-                      </button>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           <div style={{ flex: 1 }} />
