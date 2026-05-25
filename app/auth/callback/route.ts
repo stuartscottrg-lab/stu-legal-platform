@@ -5,7 +5,8 @@ export async function GET(req: NextRequest) {
   const { searchParams, origin } = req.nextUrl;
   const code = searchParams.get('code');
   const type = searchParams.get('type'); // 'invite' | 'recovery' | null
-  const redirect = searchParams.get('redirect') ?? '/';
+  // Support both `redirect` (email links) and `next` (OAuth flows)
+  const redirect = searchParams.get('next') ?? searchParams.get('redirect') ?? '/assistant';
 
   if (code) {
     const supabase = await createClient();
