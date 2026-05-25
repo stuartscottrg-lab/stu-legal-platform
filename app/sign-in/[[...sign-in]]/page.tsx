@@ -59,7 +59,7 @@ export default function SignInPage() {
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirect)}`,
-        skipBrowserRedirect: true, // We'll handle the redirect ourselves
+        skipBrowserRedirect: true,
       },
     });
     if (error) {
@@ -68,8 +68,32 @@ export default function SignInPage() {
       return;
     }
     if (data?.url) {
-      // Explicitly navigate — works reliably in both browser and Electron
-      window.location.href = data.url;
+      // Detect Electron via user agent
+      const isElectron = typeof navigator !== 'undefined' &&
+        navigator.userAgent.toLowerCase().includes('electron');
+
+      if (isElectron) {
+        // In Electron: open in system browser, then poll for session
+        // @ts-ignore — window.open with _blank opens in system browser via setWindowOpenHandler
+        window.open(data.url, '_blank');
+        // Poll every 2s for up to 3 minutes waiting for the user to complete auth
+        let attempts = 0;
+        const poll = setInterval(async () => {
+          attempts++;
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            clearInterval(poll);
+            window.location.href = redirect;
+          } else if (attempts > 90) {
+            clearInterval(poll);
+            setError('Sign-in timed out. Please try again.');
+            setGoogleLoading(false);
+          }
+        }, 2000);
+      } else {
+        // In browser: navigate directly
+        window.location.href = data.url;
+      }
     } else {
       setError('Could not generate sign-in URL. Please try again.');
       setGoogleLoading(false);
