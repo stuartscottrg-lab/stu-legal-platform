@@ -98,7 +98,7 @@ function ThinkingBlock({ thinking, open, onToggle }: { thinking: string; open: b
           fontFamily: 'inherit',
         }}
       >
-        <Brain size={11} color="#8b5cf6" />
+        <Sparkles size={11} color="#8b5cf6" />
         <span style={{ color: '#8b5cf6', fontWeight: '500' }}>See the thought process</span>
         {open ? <span style={{ fontSize: '10px', color: 'var(--c-text-3)' }}>▲</span> : <ChevronRight size={10} />}
       </button>
