@@ -178,7 +178,7 @@ export default function VoiceChat({ onClose }: Props) {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const audioDataRef = useRef<Uint8Array | null>(null);
+  const audioDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
 
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [transcript, setTranscript] = useState('');
@@ -208,7 +208,7 @@ export default function VoiceChat({ onClose }: Props) {
       source.connect(analyser);
       audioCtxRef.current = ctx;
       analyserRef.current = analyser;
-      audioDataRef.current = new Uint8Array(analyser.frequencyBinCount);
+      audioDataRef.current = new Uint8Array(analyser.frequencyBinCount) as Uint8Array<ArrayBuffer>;
     } catch {
       // Mic permission denied — fall back to synthetic amplitude
     }
