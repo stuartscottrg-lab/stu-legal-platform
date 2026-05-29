@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Check, Unplug, Plug, AlertCircle, Shield, Clock } from 'lucide-react';
+import { Check, AlertCircle, Shield, Clock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 // Connect Google through the same Supabase login door (already approved by
@@ -419,7 +419,7 @@ function ConnectorRow({ def, connected, onConnect, onDisconnect, providerEnabled
               }}
               style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', color: 'var(--c-accent-text)', background: 'var(--c-accent-bg)', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
             >
-              <Plug size={11} /> Connect
+              Connect
             </button>
           ) : (
             <span style={{ fontSize: '11px', color: 'var(--c-text-4)', background: 'var(--c-panel)', border: '1px solid var(--c-border)', borderRadius: '20px', padding: '4px 10px' }}>
