@@ -1,6 +1,25 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { Check, Unplug, Plug, AlertCircle, Shield, Clock } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+
+// Connect Google through the same Supabase login door (already approved by
+// Google), requesting Gmail + Calendar scopes so no separate redirect URI
+// needs registering. Returns to /connectors where the token is then live.
+async function connectGoogleViaSupabase() {
+  const supabase = createClient();
+  await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      scopes: [
+        'https://www.googleapis.com/auth/gmail.readonly',
+        'https://www.googleapis.com/auth/calendar.readonly',
+      ].join(' '),
+      redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/connectors?connected=google')}`,
+      queryParams: { access_type: 'offline', prompt: 'consent' },
+    },
+  });
+}
 
 interface ConnectorDef {
   id: string;
@@ -392,7 +411,12 @@ function ConnectorRow({ def, connected, onConnect, onDisconnect, providerEnabled
             </span>
           ) : canConnect ? (
             <button
-              onClick={() => { if (def.authType === 'oauth') { window.location.href = `/api/connectors/${def.id}/connect`; } else { setExpanded(e => !e); } }}
+              onClick={() => {
+                if (def.authType === 'oauth') {
+                  if (def.id === 'google') { connectGoogleViaSupabase(); }
+                  else { window.location.href = `/api/connectors/${def.id}/connect`; }
+                } else { setExpanded(e => !e); }
+              }}
               style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', color: 'var(--c-accent-text)', background: 'var(--c-accent-bg)', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
             >
               <Plug size={11} /> Connect
