@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Paperclip, Sparkles, ArrowUp, RotateCcw, Search, ChevronRight, FileText, X, Upload, Mail, Inbox, Volume2, VolumeX } from 'lucide-react';
+import { Paperclip, Sparkles, ArrowUp, RotateCcw, Search, ChevronRight, FileText, X, Upload, Mail, Inbox, Volume2, VolumeX, Wand2, FileSignature } from 'lucide-react';
 import Link from 'next/link';
 import { getPersona, DEFAULT_PERSONA_ID, type Persona } from '@/lib/personas';
 import { VoiceInput, speakText, stopSpeech } from '@/components/voice/VoiceInput';
@@ -441,6 +441,7 @@ export default function AssistantPage() {
   const [voiceMode, setVoiceMode] = useState(false);
   const [showVoiceChat, setShowVoiceChat] = useState(false);
   const [dropError, setDropError] = useState<string | null>(null);
+  const [improving, setImproving] = useState(false);
   const selectedModel = 'claude-sonnet-4-5';
   // Email / connector state
   const [emailConnected, setEmailConnected] = useState<{ account: string; provider: string } | null>(null);
@@ -660,6 +661,93 @@ export default function AssistantPage() {
     });
   }, [input, streaming, messages, selectedMatter, matters, attachedDocs, persona, voiceMode]);
 
+  /* ── Improve prompt ── */
+  async function handleImprove() {
+    const draft = input.trim();
+    if (!draft || improving || streaming) return;
+    setImproving(true);
+    try {
+      const res = await fetch('/api/ai/improve-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: draft }),
+      });
+      const data = await res.json();
+      if (res.ok && data.improved) {
+        setInput(data.improved);
+        requestAnimationFrame(() => {
+          const ta = textareaRef.current;
+          if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+        });
+      } else {
+        setDropError(data.error || 'Could not improve that prompt');
+        setTimeout(() => setDropError(null), 3000);
+      }
+    } catch {
+      setDropError('Could not reach the improve service');
+      setTimeout(() => setDropError(null), 3000);
+    } finally {
+      setImproving(false);
+    }
+  }
+
+  /* ── Improve button (shared) ── */
+  const ImproveButton = ({ compact }: { compact?: boolean }) => (
+    <button
+      onClick={handleImprove}
+      disabled={!input.trim() || improving || streaming}
+      title="Rewrite my prompt to a higher standard"
+      style={{
+        display: 'flex', alignItems: 'center', gap: '5px',
+        background: improving ? 'rgba(139,92,246,0.1)' : 'none',
+        border: 'none', borderRadius: '7px',
+        padding: compact ? '5px 8px' : '6px 10px',
+        fontSize: compact ? '12px' : '12.5px',
+        color: input.trim() && !streaming ? '#8b5cf6' : 'var(--c-text-4)',
+        cursor: input.trim() && !improving && !streaming ? 'pointer' : 'default',
+        fontFamily: 'inherit', fontWeight: 500, whiteSpace: 'nowrap',
+      }}
+    >
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <Wand2 size={compact ? 12 : 13} style={improving ? { animation: 'spin 1s linear infinite' } : undefined} />
+      {improving ? 'Improving…' : 'Improve'}
+    </button>
+  );
+
+  /* ── Draft full version of an attached document ── */
+  const DRAFT_FULL_INSTRUCTION = `Read and analyse the attached document(s) in full. Then produce a complete, fully-worded, professionally drafted version suitable for use by a UK law firm (English & Welsh law unless the document clearly states another jurisdiction).
+
+Requirements:
+- Expand any abbreviated, bullet-point or placeholder clauses into full, properly drafted wording.
+- Complete obviously missing standard sections for this type of document (e.g. definitions, governing law, execution block) where appropriate.
+- Ensure internal consistency: consistent defined terms, cross-references and numbering.
+- Use clear, professional British English.
+- Do NOT invent specific facts, names, figures or dates. Where a detail is missing, insert a clearly marked placeholder such as [CLIENT NAME] or [DATE].
+
+Output the complete drafted document first. Then add a short "Drafting notes" section listing the assumptions you made and any details I still need to confirm or fill in.`;
+
+  const DraftFullButton = ({ compact }: { compact?: boolean }) => {
+    if (!attachedDocs.length) return null;
+    return (
+      <button
+        onClick={() => send(DRAFT_FULL_INSTRUCTION)}
+        disabled={streaming || improving}
+        title="Turn the attached document into a complete, fully-worded draft"
+        style={{
+          display: 'flex', alignItems: 'center', gap: '5px',
+          background: 'none', border: 'none', borderRadius: '7px',
+          padding: compact ? '5px 8px' : '6px 10px',
+          fontSize: compact ? '12px' : '12.5px',
+          color: streaming ? 'var(--c-text-4)' : '#0ea5e9',
+          cursor: streaming ? 'default' : 'pointer',
+          fontFamily: 'inherit', fontWeight: 500, whiteSpace: 'nowrap',
+        }}
+      >
+        <FileSignature size={compact ? 12 : 13} /> Draft full version
+      </button>
+    );
+  };
+
   /* ── Shared input toolbar rows ── */
   const AttachedChips = () => (
     <>
@@ -768,6 +856,8 @@ export default function AssistantPage() {
                 <button onClick={() => setShowFiles(true)} style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', color: attachedDocs.length ? '#3b82f6' : 'var(--c-text-3)', cursor: 'pointer', fontFamily: 'inherit' }}>
                   <Paperclip size={12} /> {attachedDocs.length ? `${attachedDocs.length} file${attachedDocs.length > 1 ? 's' : ''}` : 'Files'}
                 </button>
+                <ImproveButton compact />
+                <DraftFullButton compact />
                 <button
                   onClick={() => setShowVoiceChat(true)}
                   title="Voice conversation with Stu"
@@ -905,6 +995,9 @@ export default function AssistantPage() {
             </button>
             {showPrompts && <PromptsDropdown onSelect={p => { setInput(p); setShowPrompts(false); }} onClose={() => setShowPrompts(false)} />}
           </div>
+
+          <ImproveButton />
+          <DraftFullButton />
 
           <div style={{ flex: 1 }} />
 

@@ -118,6 +118,27 @@ export async function POST(req: NextRequest) {
     const matterId = (fd.get('matterId') as string) || null;
     if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
 
+    // ── Stu OS — server-side file validation ──
+    const MAX_BYTES = 25 * 1024 * 1024; // 25 MB
+    const ALLOWED_EXTS = ['pdf', 'docx', 'doc', 'txt', 'rtf', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'tiff', 'tif', 'bmp'];
+    const lname = file.name.toLowerCase();
+    const fileExt = lname.split('.').pop() || '';
+    if (file.size > MAX_BYTES) {
+      return NextResponse.json({ error: 'File exceeds the 25 MB limit' }, { status: 413 });
+    }
+    if (file.size === 0) {
+      return NextResponse.json({ error: 'File is empty' }, { status: 400 });
+    }
+    const mimeOk = file.type === '' ||
+      file.type === 'application/pdf' ||
+      file.type.includes('wordprocessingml') ||
+      file.type === 'application/msword' ||
+      file.type.startsWith('text/') ||
+      file.type.startsWith('image/');
+    if (!ALLOWED_EXTS.includes(fileExt) || !mimeOk) {
+      return NextResponse.json({ error: `Unsupported file type: .${fileExt}. Allowed: PDF, DOCX, TXT, RTF, images.` }, { status: 415 });
+    }
+
     const docId = uuidv4();
     const ext = file.name.split('.').pop()?.toLowerCase() || 'txt';
     const buf = Buffer.from(await file.arrayBuffer());

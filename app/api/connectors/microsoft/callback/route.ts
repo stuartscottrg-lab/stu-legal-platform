@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/supabase/server';
 import sql from '@/lib/db/pg';
 import { v4 as uuid } from 'uuid';
+import { encryptToken } from '@/lib/security/tokenCrypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,16 +63,21 @@ export async function GET(req: NextRequest) {
       SELECT id FROM connector_tokens WHERE provider=${'microsoft'} AND (user_id=${user.id} OR account=${account})
     ` as any[];
 
+    // Stu OS — encrypt credentials at rest
+    const encAccess = encryptToken(tokens.access_token);
+    const encRefresh = encryptToken(tokens.refresh_token ?? null);
+    const msExpiresAt = tokens.expires_in ? Math.floor(Date.now() / 1000) + tokens.expires_in : null;
+
     if (existing) {
       await sql`
         UPDATE connector_tokens SET
-          access_token=${tokens.access_token}, refresh_token=${tokens.refresh_token ?? null}, expires_at=${tokens.expires_in ? Math.floor(Date.now() / 1000) + tokens.expires_in : null}, account=${account}, updated_at=CURRENT_TIMESTAMP
+          access_token=${encAccess}, refresh_token=${encRefresh}, expires_at=${msExpiresAt}, account=${account}, updated_at=CURRENT_TIMESTAMP
         WHERE id=${existing.id}
       `;
     } else {
       await sql`
         INSERT INTO connector_tokens (id, user_id, provider, account, access_token, refresh_token, expires_at)
-        VALUES (${uuid()}, ${user.id}, ${'microsoft'}, ${account}, ${tokens.access_token}, ${tokens.refresh_token ?? null}, ${tokens.expires_in ? Math.floor(Date.now() / 1000) + tokens.expires_in : null})
+        VALUES (${uuid()}, ${user.id}, ${'microsoft'}, ${account}, ${encAccess}, ${encRefresh}, ${msExpiresAt})
       `;
     }
 

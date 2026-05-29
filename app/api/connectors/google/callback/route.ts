@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/supabase/server';
 import sql from '@/lib/db/pg';
 import { v4 as uuid } from 'uuid';
+import { encryptToken } from '@/lib/security/tokenCrypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,11 +67,14 @@ export async function GET(req: NextRequest) {
     ` as any[];
 
     const expiresAt = tokens.expires_in ? Math.floor(Date.now() / 1000) + tokens.expires_in : null;
+    // Stu OS — encrypt credentials at rest
+    const encAccess = encryptToken(tokens.access_token);
+    const encRefresh = encryptToken(tokens.refresh_token ?? null);
 
     if (existing) {
       await sql`
         UPDATE connector_tokens SET
-          access_token=${tokens.access_token}, refresh_token=${tokens.refresh_token ?? null},
+          access_token=${encAccess}, refresh_token=${encRefresh},
           expires_at=${expiresAt}, scope=${tokens.scope ?? null},
           account=${userInfo.email}, updated_at=NOW()
         WHERE id=${existing.id}
@@ -78,7 +82,7 @@ export async function GET(req: NextRequest) {
     } else {
       await sql`
         INSERT INTO connector_tokens (id, user_id, provider, account, access_token, refresh_token, expires_at, scope)
-        VALUES (${uuid()}, ${userId}, ${'google'}, ${userInfo.email}, ${tokens.access_token}, ${tokens.refresh_token ?? null}, ${expiresAt}, ${tokens.scope ?? null})
+        VALUES (${uuid()}, ${userId}, ${'google'}, ${userInfo.email}, ${encAccess}, ${encRefresh}, ${expiresAt}, ${tokens.scope ?? null})
       `;
     }
 

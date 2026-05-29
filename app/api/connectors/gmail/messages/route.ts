@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/supabase/server';
 import sql from '@/lib/db/pg';
+import { encryptToken, decryptToken } from '@/lib/security/tokenCrypto';
 
 export const dynamic = 'force-dynamic';
 
-// Refresh Google access token if expired
+// Refresh Google access token if expired. `token.refresh_token` must already be decrypted.
 async function refreshGoogleToken(token: any): Promise<string | null> {
   if (!token.refresh_token) return null;
   try {
@@ -23,7 +24,7 @@ async function refreshGoogleToken(token: any): Promise<string | null> {
     const newExpiry = Math.floor(Date.now() / 1000) + (data.expires_in ?? 3600);
     await sql`
       UPDATE connector_tokens
-      SET access_token=${data.access_token}, expires_at=${newExpiry}, updated_at=NOW()
+      SET access_token=${encryptToken(data.access_token)}, expires_at=${newExpiry}, updated_at=NOW()
       WHERE id=${token.id}
     `;
     return data.access_token;
@@ -74,7 +75,9 @@ export async function GET(req: NextRequest) {
   }
 
   let token = rows[0];
-  let accessToken: string = token.access_token;
+  // Stu OS — decrypt credentials read from the database
+  token.refresh_token = decryptToken(token.refresh_token);
+  let accessToken: string = decryptToken(token.access_token) ?? token.access_token;
 
   // Refresh if expired
   const now = Math.floor(Date.now() / 1000);
@@ -154,7 +157,9 @@ export async function POST(req: NextRequest) {
   if (!rows.length) return NextResponse.json({ error: 'Not connected' }, { status: 401 });
 
   const token = rows[0];
-  let accessToken = token.access_token;
+  // Stu OS — decrypt credentials read from the database
+  token.refresh_token = decryptToken(token.refresh_token);
+  let accessToken = decryptToken(token.access_token) ?? token.access_token;
   const now = Math.floor(Date.now() / 1000);
   if (token.expires_at && token.expires_at < now + 60) {
     const refreshed = await refreshGoogleToken(token);

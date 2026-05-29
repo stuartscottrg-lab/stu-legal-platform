@@ -424,7 +424,7 @@ function ConnectorRow({ def, connected, onConnect, onDisconnect, providerEnabled
               </p>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 10px', background: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.2)', borderRadius: '8px' }}>
                 <Shield size={11} color="#16a34a" />
-                <span style={{ fontSize: '11px', color: '#16a34a' }}>Credentials stored securely — never shared with third parties</span>
+                <span style={{ fontSize: '11px', color: '#16a34a' }}>Encrypted at rest by Stu OS — never shared with third parties</span>
               </div>
               <input type="email" value={appleId} onChange={e => { setAppleId(e.target.value); setErr(''); }} placeholder="your@icloud.com" style={{ background: 'var(--c-card)', border: '1px solid var(--c-border)', borderRadius: '8px', padding: '9px 12px', fontSize: '13px', color: 'var(--c-text)', outline: 'none', fontFamily: 'inherit' }} />
               <input type="password" value={appPassword} onChange={e => { setAppPassword(e.target.value); setErr(''); }} placeholder="xxxx-xxxx-xxxx-xxxx" style={{ background: 'var(--c-card)', border: '1px solid var(--c-border)', borderRadius: '8px', padding: '9px 12px', fontSize: '13px', color: 'var(--c-text)', outline: 'none', fontFamily: 'inherit' }} />
@@ -508,12 +508,31 @@ export default function ConnectorsPage() {
         </div>
       ))}
 
-      {/* OAuth notice */}
-      <div style={{ padding: '14px 18px', background: 'var(--c-panel)', border: '1px solid var(--c-border)', borderRadius: '10px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-        <Shield size={14} color="var(--c-text-3)" style={{ marginTop: '1px', flexShrink: 0 }} />
-        <p style={{ fontSize: '12px', color: 'var(--c-text-3)', lineHeight: '1.65', margin: 0 }}>
-          OAuth connections (Google, Microsoft) require credentials to be set in your environment. Add <code style={{ fontFamily: 'monospace', fontSize: '11px', background: 'var(--c-card)', padding: '1px 5px', borderRadius: '3px' }}>GOOGLE_CLIENT_ID</code>, <code style={{ fontFamily: 'monospace', fontSize: '11px', background: 'var(--c-card)', padding: '1px 5px', borderRadius: '3px' }}>GOOGLE_CLIENT_SECRET</code>, <code style={{ fontFamily: 'monospace', fontSize: '11px', background: 'var(--c-card)', padding: '1px 5px', borderRadius: '3px' }}>MICROSOFT_CLIENT_ID</code>, and <code style={{ fontFamily: 'monospace', fontSize: '11px', background: 'var(--c-card)', padding: '1px 5px', borderRadius: '3px' }}>MICROSOFT_CLIENT_SECRET</code> to your environment variables to enable these connectors.
+      {/* Stu OS security panel */}
+      <div style={{ padding: '18px 20px', background: 'var(--c-panel)', border: '1px solid var(--c-border)', borderRadius: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+          <Shield size={15} color="#16a34a" />
+          <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--c-text)' }}>Secured by Stu OS</span>
+        </div>
+        <p style={{ fontSize: '12px', color: 'var(--c-text-3)', lineHeight: '1.65', margin: '0 0 12px' }}>
+          Stu OS is the security layer that governs how Stu connects to your tools and handles your files. Every connection is locked down before any data moves.
         </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          {[
+            ['Encrypted at rest', 'Access tokens & credentials are AES-256-GCM encrypted in the database.'],
+            ['No passwords stored', 'OAuth (Google, Microsoft) means we never see or store your account password.'],
+            ['Per-user isolation', 'Connections and documents are scoped to your account — never shared across firms.'],
+            ['Revoke anytime', 'Disconnect instantly removes stored credentials. You stay in control.'],
+          ].map(([title, body]) => (
+            <div key={title} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', padding: '10px 12px', background: 'var(--c-card)', border: '1px solid var(--c-border)', borderRadius: '8px' }}>
+              <Check size={12} color="#16a34a" style={{ marginTop: '2px', flexShrink: 0 }} />
+              <div>
+                <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--c-text)', marginBottom: '2px' }}>{title}</div>
+                <div style={{ fontSize: '11px', color: 'var(--c-text-3)', lineHeight: '1.55' }}>{body}</div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
