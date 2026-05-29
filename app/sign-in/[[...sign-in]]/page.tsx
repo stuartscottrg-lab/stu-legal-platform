@@ -16,13 +16,16 @@ export default function SignInPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') ?? '/assistant';
+  const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'signin';
 
-  const [mode, setMode] = useState<'signin' | 'forgot'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>(initialMode);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [resetSent, setResetSent] = useState(false);
+  const [confirmSent, setConfirmSent] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
   // If already signed in, go straight to dashboard
@@ -49,6 +52,49 @@ export default function SignInPage() {
     } else {
       router.replace(redirect);
     }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+    setLoading(true);
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: name.trim() || undefined },
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirect)}`,
+      },
+    });
+    if (error) {
+      setError(
+        error.message.toLowerCase().includes('already')
+          ? 'An account with this email already exists. Try signing in instead.'
+          : error.message
+      );
+      setLoading(false);
+      return;
+    }
+    // Supabase returns an obfuscated user with an empty identities array
+    // when the email is already registered (to prevent account enumeration).
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      setError('An account with this email already exists. Try signing in instead.');
+      setLoading(false);
+      return;
+    }
+    // If email confirmation is disabled, a session is returned immediately.
+    if (data.session) {
+      router.replace(redirect);
+      return;
+    }
+    // Otherwise the user must confirm via the email link.
+    setConfirmSent(true);
+    setLoading(false);
   };
 
   const handleGoogleSignIn = async () => {
@@ -164,6 +210,23 @@ export default function SignInPage() {
               </button>
             </div>
 
+          ) : confirmSent ? (
+            /* ── Sign-up confirmation sent ── */
+            <div style={{ textAlign: 'center', padding: '8px 0' }}>
+              <div style={{ fontSize: '32px', marginBottom: '16px' }}>📬</div>
+              <div style={{ fontSize: '15px', fontWeight: '600', color: '#f0f0f0', marginBottom: '8px' }}>Confirm your email</div>
+              <div style={{ fontSize: '13px', color: '#666', lineHeight: '1.65' }}>
+                We've sent a confirmation link to <strong style={{ color: '#999' }}>{email}</strong>.
+                Click it to activate your account, then you'll be signed straight in.
+              </div>
+              <button
+                onClick={() => { setConfirmSent(false); setMode('signin'); setPassword(''); }}
+                style={{ marginTop: '20px', background: 'none', border: 'none', color: '#555', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                Back to sign in
+              </button>
+            </div>
+
           ) : mode === 'forgot' ? (
             /* ── Forgot password ── */
             <>
@@ -198,11 +261,15 @@ export default function SignInPage() {
             </>
 
           ) : (
-            /* ── Sign in ── */
+            /* ── Sign in / Sign up ── */
             <>
               <div style={{ marginBottom: '20px' }}>
-                <div style={{ fontSize: '15px', fontWeight: '600', color: '#e0e0e0', marginBottom: '4px' }}>Sign in to your account</div>
-                <div style={{ fontSize: '12px', color: '#555' }}>Access is by invitation only.</div>
+                <div style={{ fontSize: '15px', fontWeight: '600', color: '#e0e0e0', marginBottom: '4px' }}>
+                  {mode === 'signup' ? 'Create your account' : 'Sign in to your account'}
+                </div>
+                <div style={{ fontSize: '12px', color: '#555' }}>
+                  {mode === 'signup' ? 'Get started with Stu in seconds.' : 'Welcome back.'}
+                </div>
               </div>
 
               {/* Google OAuth button */}
@@ -230,7 +297,7 @@ export default function SignInPage() {
                 ) : (
                   <>
                     <GoogleIcon />
-                    Continue with Google
+                    {mode === 'signup' ? 'Sign up with Google' : 'Continue with Google'}
                   </>
                 )}
               </button>
@@ -242,12 +309,24 @@ export default function SignInPage() {
                 <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
               </div>
 
-              <form onSubmit={handleSignIn} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <form onSubmit={mode === 'signup' ? handleSignUp : handleSignIn} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {mode === 'signup' && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '6px' }}>Full name</label>
+                    <input
+                      type="text" value={name} onChange={e => setName(e.target.value)}
+                      autoComplete="name" placeholder="Jordan Whitfield" style={inputStyle}
+                      onFocus={e => (e.target.style.borderColor = 'rgba(255,255,255,0.25)')}
+                      onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
+                    />
+                  </div>
+                )}
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '6px' }}>Email</label>
                   <input
                     type="email" value={email} onChange={e => setEmail(e.target.value)}
-                    required autoFocus placeholder="you@firm.com" style={inputStyle}
+                    required autoFocus={mode !== 'signup'} autoComplete="email"
+                    placeholder="you@firm.com" style={inputStyle}
                     onFocus={e => (e.target.style.borderColor = 'rgba(255,255,255,0.25)')}
                     onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
                   />
@@ -256,25 +335,42 @@ export default function SignInPage() {
                   <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '6px' }}>Password</label>
                   <input
                     type="password" value={password} onChange={e => setPassword(e.target.value)}
-                    required placeholder="••••••••" style={inputStyle}
+                    required autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                    placeholder={mode === 'signup' ? 'Min 8 characters' : '••••••••'} style={inputStyle}
                     onFocus={e => (e.target.style.borderColor = 'rgba(255,255,255,0.25)')}
                     onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
                   />
-                  <button
-                    type="button" onClick={() => { setMode('forgot'); setError(''); }}
-                    style={{ marginTop: '6px', background: 'none', border: 'none', color: '#444', fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
-                  >
-                    Forgot password?
-                  </button>
+                  {mode === 'signin' && (
+                    <button
+                      type="button" onClick={() => { setMode('forgot'); setError(''); }}
+                      style={{ marginTop: '6px', background: 'none', border: 'none', color: '#444', fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
+                    >
+                      Forgot password?
+                    </button>
+                  )}
                 </div>
                 {error && <div style={{ padding: '10px 12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', fontSize: '12.5px', color: '#f87171' }}>{error}</div>}
                 <button
                   type="submit" disabled={loading}
                   style={{ width: '100%', padding: '11px', borderRadius: '10px', background: loading ? 'rgba(255,255,255,0.08)' : '#fff', color: loading ? '#555' : '#000', border: 'none', fontSize: '13.5px', fontWeight: '600', cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit', transition: 'all 0.15s', marginTop: '4px' }}
                 >
-                  {loading ? 'Signing in…' : 'Sign in'}
+                  {loading
+                    ? (mode === 'signup' ? 'Creating account…' : 'Signing in…')
+                    : (mode === 'signup' ? 'Create account' : 'Sign in')}
                 </button>
               </form>
+
+              {/* Toggle between sign in / sign up */}
+              <div style={{ textAlign: 'center', marginTop: '18px', fontSize: '12.5px', color: '#555' }}>
+                {mode === 'signup' ? 'Already have an account?' : "Don't have an account?"}{' '}
+                <button
+                  type="button"
+                  onClick={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setError(''); }}
+                  style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
+                >
+                  {mode === 'signup' ? 'Sign in' : 'Create one'}
+                </button>
+              </div>
             </>
           )}
         </div>
