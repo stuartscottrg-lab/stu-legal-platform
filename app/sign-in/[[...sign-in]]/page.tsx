@@ -3,30 +3,17 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
-const GoogleIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M17.64 9.20455C17.64 8.56636 17.5827 7.95273 17.4764 7.36364H9V10.845H13.8436C13.635 11.97 13.0009 12.9232 12.0477 13.5614V15.8195H14.9564C16.6582 14.2527 17.64 11.9455 17.64 9.20455Z" fill="#4285F4"/>
-    <path d="M9 18C11.43 18 13.4673 17.1941 14.9564 15.8195L12.0477 13.5614C11.2418 14.1014 10.2109 14.4204 9 14.4204C6.65591 14.4204 4.67182 12.8373 3.96409 10.71H0.957275V13.0418C2.43818 15.9832 5.48182 18 9 18Z" fill="#34A853"/>
-    <path d="M3.96409 10.71C3.78409 10.17 3.68182 9.59318 3.68182 9C3.68182 8.40682 3.78409 7.83 3.96409 7.29V4.95818H0.957275C0.347727 6.17318 0 7.54773 0 9C0 10.4523 0.347727 11.8268 0.957275 13.0418L3.96409 10.71Z" fill="#FBBC05"/>
-    <path d="M9 3.57955C10.3214 3.57955 11.5077 4.03364 12.4405 4.92545L15.0218 2.34409C13.4632 0.891818 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.95818L3.96409 7.29C4.67182 5.16273 6.65591 3.57955 9 3.57955Z" fill="#EA4335"/>
-  </svg>
-);
-
 export default function SignInPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') ?? '/assistant';
-  const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'signin';
 
-  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>(initialMode);
-  const [name, setName] = useState('');
+  const [mode, setMode] = useState<'signin' | 'forgot'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [resetSent, setResetSent] = useState(false);
-  const [confirmSent, setConfirmSent] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
 
   // If already signed in, go straight to dashboard
   useEffect(() => {
@@ -51,98 +38,6 @@ export default function SignInPage() {
       setLoading(false);
     } else {
       router.replace(redirect);
-    }
-  };
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
-      return;
-    }
-    setLoading(true);
-    const supabase = createClient();
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: name.trim() || undefined },
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirect)}`,
-      },
-    });
-    if (error) {
-      setError(
-        error.message.toLowerCase().includes('already')
-          ? 'An account with this email already exists. Try signing in instead.'
-          : error.message
-      );
-      setLoading(false);
-      return;
-    }
-    // Supabase returns an obfuscated user with an empty identities array
-    // when the email is already registered (to prevent account enumeration).
-    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-      setError('An account with this email already exists. Try signing in instead.');
-      setLoading(false);
-      return;
-    }
-    // If email confirmation is disabled, a session is returned immediately.
-    if (data.session) {
-      router.replace(redirect);
-      return;
-    }
-    // Otherwise the user must confirm via the email link.
-    setConfirmSent(true);
-    setLoading(false);
-  };
-
-  const handleGoogleSignIn = async () => {
-    setGoogleLoading(true);
-    setError('');
-    const supabase = createClient();
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirect)}`,
-        skipBrowserRedirect: true,
-      },
-    });
-    if (error) {
-      setError(error.message);
-      setGoogleLoading(false);
-      return;
-    }
-    if (data?.url) {
-      // Detect Electron via user agent
-      const isElectron = typeof navigator !== 'undefined' &&
-        navigator.userAgent.toLowerCase().includes('electron');
-
-      if (isElectron) {
-        // In Electron: open in system browser, then poll for session
-        // @ts-ignore — window.open with _blank opens in system browser via setWindowOpenHandler
-        window.open(data.url, '_blank');
-        // Poll every 2s for up to 3 minutes waiting for the user to complete auth
-        let attempts = 0;
-        const poll = setInterval(async () => {
-          attempts++;
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) {
-            clearInterval(poll);
-            window.location.href = redirect;
-          } else if (attempts > 90) {
-            clearInterval(poll);
-            setError('Sign-in timed out. Please try again.');
-            setGoogleLoading(false);
-          }
-        }, 2000);
-      } else {
-        // In browser: navigate directly
-        window.location.href = data.url;
-      }
-    } else {
-      setError('Could not generate sign-in URL. Please try again.');
-      setGoogleLoading(false);
     }
   };
 
@@ -210,23 +105,6 @@ export default function SignInPage() {
               </button>
             </div>
 
-          ) : confirmSent ? (
-            /* ── Sign-up confirmation sent ── */
-            <div style={{ textAlign: 'center', padding: '8px 0' }}>
-              <div style={{ fontSize: '32px', marginBottom: '16px' }}>📬</div>
-              <div style={{ fontSize: '15px', fontWeight: '600', color: '#f0f0f0', marginBottom: '8px' }}>Confirm your email</div>
-              <div style={{ fontSize: '13px', color: '#666', lineHeight: '1.65' }}>
-                We've sent a confirmation link to <strong style={{ color: '#999' }}>{email}</strong>.
-                Click it to activate your account, then you'll be signed straight in.
-              </div>
-              <button
-                onClick={() => { setConfirmSent(false); setMode('signin'); setPassword(''); }}
-                style={{ marginTop: '20px', background: 'none', border: 'none', color: '#555', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}
-              >
-                Back to sign in
-              </button>
-            </div>
-
           ) : mode === 'forgot' ? (
             /* ── Forgot password ── */
             <>
@@ -261,72 +139,19 @@ export default function SignInPage() {
             </>
 
           ) : (
-            /* ── Sign in / Sign up ── */
+            /* ── Sign in ── */
             <>
               <div style={{ marginBottom: '20px' }}>
-                <div style={{ fontSize: '15px', fontWeight: '600', color: '#e0e0e0', marginBottom: '4px' }}>
-                  {mode === 'signup' ? 'Create your account' : 'Sign in to your account'}
-                </div>
-                <div style={{ fontSize: '12px', color: '#555' }}>
-                  {mode === 'signup' ? 'Get started with Stu in seconds.' : 'Welcome back.'}
-                </div>
+                <div style={{ fontSize: '15px', fontWeight: '600', color: '#e0e0e0', marginBottom: '4px' }}>Sign in to your account</div>
+                <div style={{ fontSize: '12px', color: '#555' }}>Enter the email and password provided to you.</div>
               </div>
 
-              {/* Google OAuth button */}
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={googleLoading}
-                style={{
-                  width: '100%', padding: '11px 16px', borderRadius: '10px',
-                  background: googleLoading ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: googleLoading ? '#444' : '#d0d0d0',
-                  fontSize: '13.5px', fontWeight: '500', cursor: googleLoading ? 'default' : 'pointer',
-                  fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  gap: '10px', transition: 'all 0.15s', marginBottom: '16px',
-                }}
-                onMouseEnter={e => { if (!googleLoading) (e.currentTarget.style.background = 'rgba(255,255,255,0.1)'); }}
-                onMouseLeave={e => { if (!googleLoading) (e.currentTarget.style.background = 'rgba(255,255,255,0.06)'); }}
-              >
-                {googleLoading ? (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ width: '16px', height: '16px', border: '2px solid #333', borderTopColor: '#666', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
-                    Connecting…
-                  </span>
-                ) : (
-                  <>
-                    <GoogleIcon />
-                    {mode === 'signup' ? 'Sign up with Google' : 'Continue with Google'}
-                  </>
-                )}
-              </button>
-
-              {/* Divider */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
-                <span style={{ fontSize: '11px', color: '#3a3a3a' }}>or</span>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
-              </div>
-
-              <form onSubmit={mode === 'signup' ? handleSignUp : handleSignIn} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {mode === 'signup' && (
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '6px' }}>Full name</label>
-                    <input
-                      type="text" value={name} onChange={e => setName(e.target.value)}
-                      autoComplete="name" placeholder="Jordan Whitfield" style={inputStyle}
-                      onFocus={e => (e.target.style.borderColor = 'rgba(255,255,255,0.25)')}
-                      onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
-                    />
-                  </div>
-                )}
+              <form onSubmit={handleSignIn} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '6px' }}>Email</label>
                   <input
                     type="email" value={email} onChange={e => setEmail(e.target.value)}
-                    required autoFocus={mode !== 'signup'} autoComplete="email"
-                    placeholder="you@firm.com" style={inputStyle}
+                    required autoFocus autoComplete="email" placeholder="you@firm.com" style={inputStyle}
                     onFocus={e => (e.target.style.borderColor = 'rgba(255,255,255,0.25)')}
                     onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
                   />
@@ -335,42 +160,25 @@ export default function SignInPage() {
                   <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '6px' }}>Password</label>
                   <input
                     type="password" value={password} onChange={e => setPassword(e.target.value)}
-                    required autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                    placeholder={mode === 'signup' ? 'Min 8 characters' : '••••••••'} style={inputStyle}
+                    required autoComplete="current-password" placeholder="••••••••" style={inputStyle}
                     onFocus={e => (e.target.style.borderColor = 'rgba(255,255,255,0.25)')}
                     onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
                   />
-                  {mode === 'signin' && (
-                    <button
-                      type="button" onClick={() => { setMode('forgot'); setError(''); }}
-                      style={{ marginTop: '6px', background: 'none', border: 'none', color: '#444', fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
-                    >
-                      Forgot password?
-                    </button>
-                  )}
+                  <button
+                    type="button" onClick={() => { setMode('forgot'); setError(''); }}
+                    style={{ marginTop: '6px', background: 'none', border: 'none', color: '#444', fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
+                  >
+                    Forgot password?
+                  </button>
                 </div>
                 {error && <div style={{ padding: '10px 12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', fontSize: '12.5px', color: '#f87171' }}>{error}</div>}
                 <button
                   type="submit" disabled={loading}
                   style={{ width: '100%', padding: '11px', borderRadius: '10px', background: loading ? 'rgba(255,255,255,0.08)' : '#fff', color: loading ? '#555' : '#000', border: 'none', fontSize: '13.5px', fontWeight: '600', cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit', transition: 'all 0.15s', marginTop: '4px' }}
                 >
-                  {loading
-                    ? (mode === 'signup' ? 'Creating account…' : 'Signing in…')
-                    : (mode === 'signup' ? 'Create account' : 'Sign in')}
+                  {loading ? 'Signing in…' : 'Sign in'}
                 </button>
               </form>
-
-              {/* Toggle between sign in / sign up */}
-              <div style={{ textAlign: 'center', marginTop: '18px', fontSize: '12.5px', color: '#555' }}>
-                {mode === 'signup' ? 'Already have an account?' : "Don't have an account?"}{' '}
-                <button
-                  type="button"
-                  onClick={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setError(''); }}
-                  style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
-                >
-                  {mode === 'signup' ? 'Sign in' : 'Create one'}
-                </button>
-              </div>
             </>
           )}
         </div>

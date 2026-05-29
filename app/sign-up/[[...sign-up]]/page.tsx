@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-// Account creation lives on the unified auth page in `signup` mode.
+// Accounts are provisioned by an administrator — no public sign-up.
 export default function SignUpPage() {
-  redirect('/sign-in?mode=signup');
+  redirect('/sign-in');
 }
