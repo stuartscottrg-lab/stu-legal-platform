@@ -4,23 +4,35 @@ import sql from '@/lib/db/pg';
 import { v4 as uuid } from 'uuid';
 import { encryptToken } from '@/lib/security/tokenCrypto';
 
-// When a Google OAuth login also granted connector scopes (gmail/calendar),
+// When an OAuth login also granted connector scopes (mail/calendar),
 // Supabase hands back a provider_refresh_token. Persist it as a connector
-// token so Stu can read the inbox — reusing the login flow, no separate
-// Google redirect URI required.
-async function persistGoogleConnector(session: any, user: any) {
+// token so Stu can read the inbox — reusing the login flow, so no separate
+// Google/Microsoft redirect URI needs registering.
+//
+// Supabase's provider name → our internal connector id:
+//   google → 'google' (Gmail/Calendar)
+//   azure  → 'outlook' (Microsoft 365 / Graph)
+function connectorIdFor(provider?: string): string | null {
+  if (provider === 'google') return 'google';
+  if (provider === 'azure') return 'outlook';
+  return null;
+}
+
+async function persistConnector(session: any, user: any) {
   const refresh = session?.provider_refresh_token;
   const access = session?.provider_token;
-  // Only a connector consent (access_type=offline) yields a refresh token.
+  // Only a connector consent (offline access) yields a refresh token.
   if (!refresh || !access) return;
+  const provider = connectorIdFor(user?.app_metadata?.provider);
+  if (!provider) return;
   const account = user?.email ?? user?.user_metadata?.email ?? null;
   const userId = user?.id ?? 'anon';
-  const expiresAt = Math.floor(Date.now() / 1000) + 3600; // Google access tokens last ~1h
+  const expiresAt = Math.floor(Date.now() / 1000) + 3600; // access tokens last ~1h
   const encAccess = encryptToken(access);
   const encRefresh = encryptToken(refresh);
   try {
     const [existing] = await sql`
-      SELECT id FROM connector_tokens WHERE provider='google' AND (user_id=${userId} OR account=${account})
+      SELECT id FROM connector_tokens WHERE provider=${provider} AND (user_id=${userId} OR account=${account})
     ` as any[];
     if (existing) {
       await sql`
@@ -32,11 +44,11 @@ async function persistGoogleConnector(session: any, user: any) {
     } else {
       await sql`
         INSERT INTO connector_tokens (id, user_id, provider, account, access_token, refresh_token, expires_at)
-        VALUES (${uuid()}, ${userId}, ${'google'}, ${account}, ${encAccess}, ${encRefresh}, ${expiresAt})
+        VALUES (${uuid()}, ${userId}, ${provider}, ${account}, ${encAccess}, ${encRefresh}, ${expiresAt})
       `;
     }
   } catch (e) {
-    console.error('persistGoogleConnector error:', e);
+    console.error('persistConnector error:', e);
   }
 }
 
@@ -50,9 +62,9 @@ export async function GET(req: NextRequest) {
   if (code) {
     const supabase = await createClient();
     const { data } = await supabase.auth.exchangeCodeForSession(code);
-    // If Google returned connector scopes, store the token (Stu OS encrypted).
+    // If the provider returned connector scopes, store the token (Stu OS encrypted).
     if (data?.session) {
-      await persistGoogleConnector(data.session, data.user);
+      await persistConnector(data.session, data.user);
     }
   }
 

@@ -1067,7 +1067,10 @@ Output the complete drafted document first. Then add a short "Drafting notes" se
               if (!emailActive) {
                 // Activate + fetch emails
                 try {
-                  const data = await fetch('/api/connectors/gmail/messages?limit=15').then(r => r.json());
+                  const endpoint = emailConnected.provider === 'Outlook'
+                    ? '/api/connectors/microsoft/messages?limit=15'
+                    : '/api/connectors/gmail/messages?limit=15';
+                  const data = await fetch(endpoint).then(r => r.json());
                   setEmailEmails(data.emails ?? []);
                   setEmailActive(true);
                 } catch {

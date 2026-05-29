@@ -21,6 +21,23 @@ async function connectGoogleViaSupabase() {
   });
 }
 
+// Connect Microsoft 365 (Outlook/Exchange) through Supabase's Azure provider,
+// requesting Mail + Calendar read scopes with offline access. Same model as
+// Google — no separate Microsoft redirect URI to register.
+async function connectMicrosoftViaSupabase() {
+  const supabase = createClient();
+  await supabase.auth.signInWithOAuth({
+    provider: 'azure',
+    options: {
+      scopes: 'openid email profile offline_access Mail.Read Calendars.Read',
+      redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/connectors?connected=outlook')}`,
+    },
+  });
+}
+
+// OAuth connectors brokered through Supabase (no per-app redirect URI needed)
+const SUPABASE_OAUTH = new Set(['google', 'outlook']);
+
 interface ConnectorDef {
   id: string;
   label: string;
@@ -349,7 +366,10 @@ function ConnectorRow({ def, connected, onConnect, onDisconnect, providerEnabled
   const [err, setErr] = useState('');
 
   const isConnected = !!connected;
-  const canConnect = def.authType !== 'soon' && (def.authType === 'imap' || def.authType === 'apikey' || providerEnabled);
+  const canConnect = def.authType !== 'soon' && (
+    def.authType === 'imap' || def.authType === 'apikey' ||
+    SUPABASE_OAUTH.has(def.id) || providerEnabled
+  );
 
   async function handleImap() {
     if (!appleId.includes('@') || !appPassword.trim()) { setErr('Enter a valid Apple ID and app-specific password'); return; }
@@ -414,6 +434,7 @@ function ConnectorRow({ def, connected, onConnect, onDisconnect, providerEnabled
               onClick={() => {
                 if (def.authType === 'oauth') {
                   if (def.id === 'google') { connectGoogleViaSupabase(); }
+                  else if (def.id === 'outlook') { connectMicrosoftViaSupabase(); }
                   else { window.location.href = `/api/connectors/${def.id}/connect`; }
                 } else { setExpanded(e => !e); }
               }}
